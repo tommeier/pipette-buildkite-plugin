@@ -28,7 +28,11 @@ defmodule Pipette.IntegrationTest do
             label: ":elixir: API",
             scope: :api_code,
             steps: [
-              %Pipette.Step{name: :format, label: "Format", command: "mix format --check-formatted"},
+              %Pipette.Step{
+                name: :format,
+                label: "Format",
+                command: "mix format --check-formatted"
+              },
               %Pipette.Step{name: :test, label: "Test", command: "mix test"}
             ]
           },
@@ -47,7 +51,11 @@ defmodule Pipette.IntegrationTest do
             depends_on: :web,
             only: ["main", "merge-queue/**"],
             steps: [
-              %Pipette.Step{name: :pre_release, label: "Pre-Release", command: "./pre-release.sh"},
+              %Pipette.Step{
+                name: :pre_release,
+                label: "Pre-Release",
+                command: "./pre-release.sh"
+              },
               %Pipette.Step{
                 name: :release,
                 label: "Release",
@@ -70,7 +78,11 @@ defmodule Pipette.IntegrationTest do
             label: ":bash: Lint",
             scope: :scripts,
             steps: [
-              %Pipette.Step{name: :shellcheck, label: "ShellCheck", command: "shellcheck **/*.sh"},
+              %Pipette.Step{
+                name: :shellcheck,
+                label: "ShellCheck",
+                command: "shellcheck **/*.sh"
+              },
               %Pipette.Step{name: :shfmt, label: "shfmt", command: "shfmt -d ."}
             ]
           }
