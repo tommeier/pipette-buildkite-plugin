@@ -25,7 +25,7 @@ Discover packages in a `packages/` directory and generate a test group for each:
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:pipette, "~> 0.1"}])
+Mix.install([{:pipette_buildkite, "~> 0.1"}])
 
 defmodule MyApp.Pipeline do
   @behaviour Pipette.Pipeline

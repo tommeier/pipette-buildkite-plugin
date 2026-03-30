@@ -1,8 +1,8 @@
 # Pipette
 
-[![Hex.pm](https://img.shields.io/hexpm/v/pipette.svg)](https://hex.pm/packages/pipette)
+[![Hex.pm](https://img.shields.io/hexpm/v/pipette_buildkite.svg)](https://hex.pm/packages/pipette_buildkite)
 [![CI](https://github.com/tommeier/pipette-buildkite-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/tommeier/pipette-buildkite-plugin/actions)
-[![License](https://img.shields.io/hexpm/l/pipette.svg)](LICENSE)
+[![License](https://img.shields.io/hexpm/l/pipette_buildkite.svg)](LICENSE)
 
 **Declarative Buildkite pipeline generation for monorepos, written in Elixir.**
 
@@ -78,7 +78,7 @@ end
 Create a pipeline script at `.buildkite/pipeline.exs`:
 
 ```elixir
-Mix.install([{:pipette, "~> 0.1"}])
+Mix.install([{:pipette_buildkite, "~> 0.1"}])
 Pipette.run(MyApp.Pipeline)
 ```
 
@@ -96,14 +96,14 @@ Add `pipette` to your `mix.exs` dependencies:
 
 ```elixir
 def deps do
-  [{:pipette, "~> 0.1"}]
+  [{:pipette_buildkite, "~> 0.1"}]
 end
 ```
 
 Or use `Mix.install` in standalone pipeline scripts (no project required):
 
 ```elixir
-Mix.install([{:pipette, "~> 0.1"}])
+Mix.install([{:pipette_buildkite, "~> 0.1"}])
 ```
 
 ## How It Works
@@ -255,7 +255,7 @@ The plugin runs `elixir <pipeline>` — your pipeline script should use `Mix.ins
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:pipette, "~> 0.1"}])
+Mix.install([{:pipette_buildkite, "~> 0.1"}])
 
 defmodule MyApp.Pipeline do
   @behaviour Pipette.Pipeline
