@@ -6,7 +6,7 @@ defmodule Pipette.MixProject do
 
   def project do
     [
-      app: :pipette_buildkite,
+      app: :buildkite_pipette,
       version: @version,
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,

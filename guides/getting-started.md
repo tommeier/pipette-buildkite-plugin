@@ -100,7 +100,7 @@ Key decisions:
 Create `.buildkite/pipeline.exs`:
 
 ```elixir
-Mix.install([{:pipette_buildkite, "~> 0.1"}])
+Mix.install([{:buildkite_pipette, "~> 0.1"}])
 
 # Define the pipeline module inline, or Code.require_file it from elsewhere
 defmodule MyApp.Pipeline do
@@ -118,7 +118,7 @@ Pipette.run(MyApp.Pipeline)
 If your pipeline module is in a separate file (e.g. `lib/my_app/pipeline.ex`), you can require it:
 
 ```elixir
-Mix.install([{:pipette_buildkite, "~> 0.1"}])
+Mix.install([{:buildkite_pipette, "~> 0.1"}])
 Code.require_file("lib/my_app/pipeline.ex")
 Pipette.run(MyApp.Pipeline)
 ```
@@ -154,7 +154,7 @@ DRY_RUN=1 elixir .buildkite/pipeline.exs
 You can also simulate a specific branch and changed files in an IEx session:
 
 ```elixir
-Mix.install([{:pipette_buildkite, "~> 0.1"}])
+Mix.install([{:buildkite_pipette, "~> 0.1"}])
 
 # Load your pipeline module
 Code.require_file(".buildkite/pipeline.exs")
