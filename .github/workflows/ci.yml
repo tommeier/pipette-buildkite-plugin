@@ -29,3 +29,36 @@ jobs:
       - run: mix compile --warnings-as-errors
       - run: mix test
       - run: mix format --check-formatted
+
+  lint-plugin:
+    name: Lint plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run plugin linter
+        run: |
+          docker run --rm -v "$PWD:/plugin:ro" \
+            buildkite/plugin-linter \
+            --id tommeier/pipette \
+            --path /plugin
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck
+        run: shellcheck hooks/*
+
+  bats:
+    name: BATS tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run BATS tests
+        run: |
+          docker run --rm \
+            -v "$PWD:/plugin" \
+            -w /plugin \
+            -e BATS_TMPDIR=/tmp \
+            bats/bats:latest tests/
