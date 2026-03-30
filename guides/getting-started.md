@@ -15,77 +15,43 @@ Create a module that implements the `Pipette.Pipeline` behaviour. This is where 
 ```elixir
 defmodule MyApp.Pipeline do
   @behaviour Pipette.Pipeline
+  import Pipette.DSL
 
   @impl true
   def pipeline do
-    %Pipette.Pipeline{
+    pipeline(
       branches: [
-        # Run all groups on main, disable commit message targeting
-        %Pipette.Branch{pattern: "main", scopes: :all, disable: [:targeting]},
-        # Same for merge queue branches
-        %Pipette.Branch{pattern: "merge-queue/**", scopes: :all, disable: [:targeting]}
+        branch("main", scopes: :all, disable: [:targeting]),
+        branch("merge-queue/**", scopes: :all, disable: [:targeting])
       ],
       scopes: [
-        %Pipette.Scope{name: :api_code, files: ["apps/api/**"]},
-        %Pipette.Scope{name: :web_code, files: ["apps/web/**"]},
-        %Pipette.Scope{
-          name: :root_config,
-          files: [".buildkite/**", "mix.exs"],
-          activates: :all
-        }
+        scope(:api_code, files: ["apps/api/**"]),
+        scope(:web_code, files: ["apps/web/**"]),
+        scope(:root_config, files: [".buildkite/**", "mix.exs"], activates: :all)
       ],
       groups: [
-        %Pipette.Group{
-          name: :api,
-          label: ":elixir: API",
-          scope: :api_code,
-          steps: [
-            %Pipette.Step{
-              name: :test,
-              label: "Test",
-              command: "mix test",
-              timeout_in_minutes: 15
-            },
-            %Pipette.Step{
-              name: :lint,
-              label: "Lint",
-              command: "mix credo --strict",
-              timeout_in_minutes: 10
-            }
-          ]
-        },
-        %Pipette.Group{
-          name: :web,
-          label: ":globe_with_meridians: Web",
-          scope: :web_code,
-          steps: [
-            %Pipette.Step{name: :test, label: "Test", command: "pnpm test"},
-            %Pipette.Step{name: :build, label: "Build", command: "pnpm build"}
-          ]
-        },
-        %Pipette.Group{
-          name: :deploy,
-          label: ":rocket: Deploy",
-          depends_on: [:api, :web],
-          only: "main",
-          steps: [
-            %Pipette.Step{name: :push, label: "Push", command: "./deploy.sh"}
-          ]
-        }
+        group(:api, label: ":elixir: API", scope: :api_code, steps: [
+          step(:test, label: "Test", command: "mix test", timeout_in_minutes: 15),
+          step(:lint, label: "Lint", command: "mix credo --strict", timeout_in_minutes: 10)
+        ]),
+        group(:web, label: ":globe_with_meridians: Web", scope: :web_code, steps: [
+          step(:test, label: "Test", command: "pnpm test"),
+          step(:build, label: "Build", command: "pnpm build")
+        ]),
+        group(:deploy, label: ":rocket: Deploy", depends_on: [:api, :web], only: "main", steps: [
+          step(:push, label: "Push", command: "./deploy.sh")
+        ])
       ],
       triggers: [
-        %Pipette.Trigger{
-          name: :notify,
-          pipeline: "slack-notify",
-          depends_on: :deploy,
-          only: "main"
-        }
+        trigger(:notify, pipeline: "slack-notify", depends_on: :deploy, only: "main")
       ],
       ignore: ["docs/**", "*.md", "LICENSE"]
-    }
+    )
   end
 end
 ```
+
+> The DSL functions (`pipeline/1`, `branch/2`, `scope/2`, `group/2`, `step/2`, `trigger/2`) are plain functions that return structs. You can also construct `%Pipette.Pipeline{}` and friends directly — see the [Raw Structs section in the README](../README.md#raw-structs).
 
 Key decisions:
 
@@ -100,11 +66,12 @@ Key decisions:
 Create `.buildkite/pipeline.exs`:
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.1"}])
+Mix.install([{:buildkite_pipette, "~> 0.2"}])
 
 # Define the pipeline module inline, or Code.require_file it from elsewhere
 defmodule MyApp.Pipeline do
   @behaviour Pipette.Pipeline
+  import Pipette.DSL
 
   @impl true
   def pipeline do
@@ -199,6 +166,7 @@ end
 
 ## Next steps
 
+- [Production Example](production-example.md) — a realistic monorepo pipeline with deploys, plugins, and triggers
 - [Activation](activation.md) — understand the full activation algorithm
 - [Targeting](targeting.md) — run specific groups via commit messages
 - [Dynamic Groups](dynamic-groups.md) — generate groups at runtime

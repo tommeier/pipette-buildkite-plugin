@@ -44,6 +44,7 @@ defmodule Pipette.MixProject do
       extras: [
         "README.md",
         "guides/getting-started.md",
+        "guides/production-example.md",
         "guides/activation.md",
         "guides/targeting.md",
         "guides/dynamic-groups.md",

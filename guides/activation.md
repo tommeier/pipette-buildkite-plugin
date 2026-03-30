@@ -138,6 +138,41 @@ If a commit changes only `README.md` and `docs/guide.md`, the pipeline returns `
 
 If the commit also changes `apps/api/lib/user.ex`, the ignore patterns are not applied — normal scope detection runs.
 
+## Cross-Group Step Dependencies
+
+Steps can depend on specific steps in other groups using tuple syntax:
+
+```elixir
+import Pipette.DSL
+
+group(:deploy, label: ":rocket: Deploy", depends_on: [:api, :web], only: "main", steps: [
+  step(:deploy_api,
+    label: "Deploy API",
+    depends_on: {:api, :test},
+    command: "./scripts/deploy-api.sh"
+  ),
+  step(:deploy_web,
+    label: "Deploy Web",
+    depends_on: {:web, :build},
+    command: "./scripts/deploy-web.sh"
+  )
+])
+```
+
+The tuple `{:api, :test}` resolves to the Buildkite step key `"api-test"`. This lets you express fine-grained dependencies — the deploy step waits for the specific upstream step, not just the group as a whole.
+
+You can also mix cross-group and intra-group dependencies in a list:
+
+```elixir
+step(:integration,
+  label: "Integration Tests",
+  depends_on: [{:api, :build}, {:web, :build}, :setup],
+  command: "./scripts/integration-test.sh"
+)
+```
+
+Here `:setup` refers to another step within the same group, while the tuples reference steps in the `:api` and `:web` groups.
+
 ## `activates: :all`
 
 A scope with `activates: :all` causes all groups to activate when that scope fires:

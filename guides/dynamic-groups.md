@@ -21,37 +21,35 @@ The function receives:
 
 ## Package Discovery Example
 
-Discover packages in a `packages/` directory and generate a test group for each:
+Discover packages in a `packages/` directory and generate a group for each with format, test, and build steps:
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:buildkite_pipette, "~> 0.1"}])
+Mix.install([{:buildkite_pipette, "~> 0.2"}])
 
 defmodule MyApp.Pipeline do
   @behaviour Pipette.Pipeline
+  import Pipette.DSL
 
   @impl true
   def pipeline do
-    %Pipette.Pipeline{
+    pipeline(
       branches: [
-        %Pipette.Branch{pattern: "main", scopes: :all}
+        branch("main", scopes: :all)
       ],
       scopes: [
-        %Pipette.Scope{name: :api_code, files: ["apps/api/**"]}
+        scope(:api_code, files: ["apps/api/**"])
       ],
       groups: [
-        %Pipette.Group{
-          name: :api,
-          label: ":elixir: API",
-          scope: :api_code,
-          steps: [
-            %Pipette.Step{name: :test, label: "Test", command: "mix test"}
-          ]
-        }
+        group(:api, label: ":elixir: API", scope: :api_code, steps: [
+          step(:test, label: "Test", command: "mix test", timeout_in_minutes: 15)
+        ])
       ]
-    }
+    )
   end
 end
+
+import Pipette.DSL
 
 Pipette.run(MyApp.Pipeline,
   extra_groups: fn _ctx, _changed_files ->
@@ -59,19 +57,29 @@ Pipette.run(MyApp.Pipeline,
     |> File.ls!()
     |> Enum.filter(&File.dir?(Path.join("packages", &1)))
     |> Enum.map(fn pkg ->
-      %Pipette.Group{
-        name: String.to_atom(pkg),
-        label: ":package: #{pkg}",
-        key: pkg,
-        steps: [
-          %Pipette.Step{
-            name: :test,
-            label: "Test",
-            command: "cd packages/#{pkg} && mix test",
-            key: "#{pkg}-test"
-          }
-        ]
-      }
+      group(String.to_atom(pkg), label: ":package: #{pkg}", key: pkg, steps: [
+        step(:format,
+          label: "Format",
+          command: "cd packages/#{pkg} && mix format --check-formatted",
+          key: "#{pkg}-format",
+          timeout_in_minutes: 5
+        ),
+        step(:test,
+          label: "Test",
+          command: "cd packages/#{pkg} && mix test",
+          key: "#{pkg}-test",
+          timeout_in_minutes: 15,
+          env: %{"MIX_ENV" => "test"},
+          retry: %{automatic: [%{exit_status: -1, limit: 2}]}
+        ),
+        step(:build,
+          label: "Build",
+          command: "cd packages/#{pkg} && mix compile --warnings-as-errors",
+          key: "#{pkg}-build",
+          depends_on: "#{pkg}-format",
+          timeout_in_minutes: 10
+        )
+      ])
     end)
   end
 )
@@ -114,22 +122,21 @@ end
 ## Branch-Aware Dynamic Groups
 
 ```elixir
+import Pipette.DSL
+
 extra_groups: fn ctx, _changed_files ->
   if ctx.is_default_branch do
     [
-      %Pipette.Group{
-        name: :publish,
-        label: ":rocket: Publish Packages",
-        key: "publish",
-        steps: [
-          %Pipette.Step{
-            name: :publish,
-            label: "Publish",
-            command: "./scripts/publish-all.sh",
-            key: "publish-all"
-          }
-        ]
-      }
+      group(:publish, label: ":rocket: Publish Packages", key: "publish", steps: [
+        step(:publish,
+          label: "Publish",
+          command: "./scripts/publish-all.sh",
+          key: "publish-all",
+          timeout_in_minutes: 15,
+          concurrency: 1,
+          concurrency_group: "publish-packages"
+        )
+      ])
     ]
   else
     []

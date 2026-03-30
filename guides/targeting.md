@@ -110,3 +110,27 @@ With targeting disabled, `[ci:api]` in the commit message is ignored and all gro
 | `CI_TARGET=api` | Same as `[ci:api]` via env var |
 
 Group and step names must be lowercase letters and underscores (`[a-z_]+`).
+
+## Triggers with Build Parameters
+
+Triggers can pass build parameters to downstream pipelines. This is useful for deploy chains where the downstream pipeline needs to know what to deploy:
+
+```elixir
+import Pipette.DSL
+
+trigger(:deploy_downstream,
+  pipeline: "production-deploy",
+  depends_on: :api,
+  only: "main",
+  build: %{
+    commit: "${BUILDKITE_COMMIT}",
+    branch: "${BUILDKITE_BRANCH}",
+    message: "${BUILDKITE_MESSAGE}",
+    env: %{"DEPLOY_ENV" => "production"}
+  }
+)
+```
+
+The `build` map is passed directly to the Buildkite trigger step. Buildkite environment variable interpolation (`${VAR}`) works in string values. The downstream pipeline receives these as its build parameters.
+
+The trigger's `depends_on` and `only` filters still apply — the trigger only fires when its dependency groups are active and the branch matches.
