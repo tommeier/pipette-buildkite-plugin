@@ -1,7 +1,7 @@
 defmodule Pipette.MixProject do
   use Mix.Project
 
-  @version "0.1.1"
+  @version "0.2.0"
   @source_url "https://github.com/tommeier/pipette-buildkite-plugin"
 
   def project do
@@ -56,6 +56,7 @@ defmodule Pipette.MixProject do
       groups_for_modules: [
         "Pipeline Definition": [
           Pipette.Pipeline,
+          Pipette.DSL,
           Pipette.Branch,
           Pipette.Scope,
           Pipette.Group,

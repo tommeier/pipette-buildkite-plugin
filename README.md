@@ -6,7 +6,7 @@
 
 **Declarative Buildkite pipeline generation for monorepos, written in Elixir.**
 
-Define your CI pipeline as plain Elixir structs — scope-based change detection, branch policies, commit message targeting, dependency graphs, and dynamic group generation. No metaprogramming, no DSL framework, just structs and functions.
+Define your CI pipeline as plain Elixir structs — scope-based change detection, branch policies, commit message targeting, dependency graphs, and dynamic group generation. No metaprogramming, no compile-time magic, just structs and functions.
 
 ## Features
 
@@ -28,51 +28,63 @@ Define a pipeline module:
 ```elixir
 defmodule MyApp.Pipeline do
   @behaviour Pipette.Pipeline
+  import Pipette.DSL
 
   @impl true
   def pipeline do
-    %Pipette.Pipeline{
+    pipeline(
       branches: [
-        %Pipette.Branch{pattern: "main", scopes: :all, disable: [:targeting]}
+        branch("main", scopes: :all, disable: [:targeting])
       ],
       scopes: [
-        %Pipette.Scope{name: :api_code, files: ["apps/api/**", "mix.exs"]},
-        %Pipette.Scope{name: :web_code, files: ["apps/web/**", "package.json"]},
-        %Pipette.Scope{name: :infra_code, files: ["infra/**"], exclude: ["**/*.md"]}
+        scope(:api_code, files: ["apps/api/**", "mix.exs"]),
+        scope(:web_code, files: ["apps/web/**", "package.json"]),
+        scope(:infra_code, files: ["infra/**"], exclude: ["**/*.md"])
       ],
       groups: [
-        %Pipette.Group{
-          name: :api,
-          label: ":elixir: API",
-          scope: :api_code,
-          steps: [
-            %Pipette.Step{name: :test, label: "Test", command: "mix test", timeout_in_minutes: 15},
-            %Pipette.Step{name: :lint, label: "Lint", command: "mix credo", timeout_in_minutes: 10}
-          ]
-        },
-        %Pipette.Group{
-          name: :web,
-          label: ":react: Web",
-          scope: :web_code,
-          steps: [
-            %Pipette.Step{name: :test, label: "Test", command: "pnpm test", timeout_in_minutes: 15},
-            %Pipette.Step{name: :lint, label: "Lint", command: "pnpm lint", timeout_in_minutes: 10}
-          ]
-        },
-        %Pipette.Group{
-          name: :deploy,
-          label: ":rocket: Deploy",
-          depends_on: [:api, :web],
-          only: "main",
-          steps: [
-            %Pipette.Step{name: :push, label: "Push", command: "./deploy.sh"}
-          ]
-        }
+        group(:api, label: ":elixir: API", scope: :api_code, steps: [
+          step(:test, label: "Test", command: "mix test", timeout_in_minutes: 15),
+          step(:lint, label: "Lint", command: "mix credo", timeout_in_minutes: 10)
+        ]),
+        group(:web, label: ":react: Web", scope: :web_code, steps: [
+          step(:test, label: "Test", command: "pnpm test", timeout_in_minutes: 15),
+          step(:lint, label: "Lint", command: "pnpm lint", timeout_in_minutes: 10)
+        ]),
+        group(:deploy, label: ":rocket: Deploy", depends_on: [:api, :web], only: "main", steps: [
+          step(:push, label: "Push", command: "./deploy.sh")
+        ])
       ],
       ignore: ["docs/**", "*.md"]
-    }
+    )
   end
 end
+```
+
+### Raw Structs
+
+If you prefer explicit struct construction, the DSL is entirely optional — every function above just returns a plain struct:
+
+```elixir
+%Pipette.Pipeline{
+  branches: [
+    %Pipette.Branch{pattern: "main", scopes: :all, disable: [:targeting]}
+  ],
+  scopes: [
+    %Pipette.Scope{name: :api_code, files: ["apps/api/**", "mix.exs"]}
+  ],
+  groups: [
+    %Pipette.Group{
+      name: :api,
+      label: ":elixir: API",
+      scope: :api_code,
+      steps: [
+        %Pipette.Step{name: :test, label: "Test", command: "mix test", timeout_in_minutes: 15},
+        %Pipette.Step{name: :lint, label: "Lint", command: "mix credo", timeout_in_minutes: 10}
+      ]
+    }
+  ],
+  ignore: ["docs/**", "*.md"]
+}
 ```
 
 Create a pipeline script at `.buildkite/pipeline.exs`:
