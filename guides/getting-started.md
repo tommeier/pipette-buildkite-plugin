@@ -138,7 +138,7 @@ Or use the Buildkite plugin:
 ```yaml
 steps:
   - plugins:
-      - tommeier/pipette-buildkite-plugin#v0.1.0:
+      - tommeier/pipette#v0.1.0:
           pipeline: .buildkite/pipeline.exs
 ```
 
