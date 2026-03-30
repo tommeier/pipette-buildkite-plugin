@@ -393,17 +393,23 @@ defmodule Pipette do
   defp resolve_force_groups(_force_activate, _env), do: MapSet.new()
 
   defp upload(yaml) do
-    case System.cmd("buildkite-agent", ["pipeline", "upload"],
-           input: yaml,
-           stderr_to_stdout: true
-         ) do
-      {_output, 0} ->
-        Logger.info("Pipeline uploaded successfully")
-        :ok
+    tmp = Path.join(System.tmp_dir!(), "pipette-#{System.unique_integer([:positive])}.yml")
+    File.write!(tmp, yaml)
 
-      {output, code} ->
-        Logger.error("Pipeline upload failed (exit #{code}): #{output}")
-        {:error, "Pipeline upload failed (exit #{code}): #{output}"}
+    try do
+      case System.cmd("buildkite-agent", ["pipeline", "upload", tmp],
+             stderr_to_stdout: true
+           ) do
+        {_output, 0} ->
+          Logger.info("Pipeline uploaded successfully")
+          :ok
+
+        {output, code} ->
+          Logger.error("Pipeline upload failed (exit #{code}): #{output}")
+          {:error, "Pipeline upload failed (exit #{code}): #{output}"}
+      end
+    after
+      File.rm(tmp)
     end
   end
 
