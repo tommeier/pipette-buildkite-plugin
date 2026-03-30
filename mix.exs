@@ -43,7 +43,35 @@ defmodule Pipette.MixProject do
       main: "readme",
       extras: [
         "README.md",
+        "guides/getting-started.md",
+        "guides/activation.md",
+        "guides/targeting.md",
+        "guides/dynamic-groups.md",
+        "guides/testing.md",
         "LICENSE"
+      ],
+      groups_for_extras: [
+        Guides: ~r/guides\/.*/
+      ],
+      groups_for_modules: [
+        "Pipeline Definition": [
+          Pipette.Pipeline,
+          Pipette.Branch,
+          Pipette.Scope,
+          Pipette.Group,
+          Pipette.Step,
+          Pipette.Trigger
+        ],
+        Engine: [
+          Pipette.Activation,
+          Pipette.Git,
+          Pipette.Graph,
+          Pipette.Target,
+          Pipette.Context
+        ],
+        Output: [
+          Pipette.Buildkite
+        ]
       ]
     ]
   end

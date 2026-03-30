@@ -42,6 +42,19 @@ defmodule Pipette.Buildkite do
       Pipette.Buildkite.to_yaml(groups, %{env: %{LANG: "C.UTF-8"}}, triggers)
   """
 
+  @doc """
+  Serialize groups, pipeline config, and triggers to a Buildkite YAML document.
+
+  Returns a YAML string starting with `---` that can be piped to
+  `buildkite-agent pipeline upload`.
+
+  ## Examples
+
+      groups = [%Pipette.Group{name: :api, label: ":elixir: API", key: "api", steps: [...]}]
+      yaml = Pipette.Buildkite.to_yaml(groups)
+
+      yaml = Pipette.Buildkite.to_yaml(groups, %{env: %{MIX_ENV: "test"}}, triggers)
+  """
   @spec to_yaml([Pipette.Group.t()], map(), [Pipette.Trigger.t()]) :: String.t()
   def to_yaml(groups, pipeline_config \\ %{}, triggers \\ []) do
     group_steps = Enum.map(groups, &serialize_group/1)

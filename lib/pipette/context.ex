@@ -5,6 +5,16 @@ defmodule Pipette.Context do
   Captures the CI environment (branch, commit, PR info) into a struct
   that other modules use for decision-making.
 
+  ## Fields
+
+    * `:branch` — current branch name (`BUILDKITE_BRANCH`)
+    * `:default_branch` — pipeline default branch (`BUILDKITE_PIPELINE_DEFAULT_BRANCH`, defaults to `"main"`)
+    * `:commit` — current commit SHA (`BUILDKITE_COMMIT`)
+    * `:message` — commit message (`BUILDKITE_MESSAGE`)
+    * `:pull_request_base_branch` — PR base branch, if any (`BUILDKITE_PULL_REQUEST_BASE_BRANCH`)
+    * `:ci_target` — explicit targeting via env var (`CI_TARGET`)
+    * `:is_default_branch` — `true` when `:branch` equals `:default_branch`
+
   ## Example
 
       ctx = Pipette.Context.from_env(%{
@@ -15,7 +25,7 @@ defmodule Pipette.Context do
         "BUILDKITE_PULL_REQUEST_BASE_BRANCH" => "main"
       })
 
-      ctx.branch            #=> "feature/login"
+      ctx.branch             #=> "feature/login"
       ctx.is_default_branch  #=> false
   """
 
@@ -39,6 +49,23 @@ defmodule Pipette.Context do
           is_default_branch: boolean()
         }
 
+  @doc """
+  Build a context from a map of environment variables.
+
+  This is the primary constructor. In tests, pass a map with the
+  Buildkite environment variables you want to simulate.
+
+  ## Examples
+
+      ctx = Pipette.Context.from_env(%{
+        "BUILDKITE_BRANCH" => "feature/login",
+        "BUILDKITE_PIPELINE_DEFAULT_BRANCH" => "main",
+        "BUILDKITE_COMMIT" => "abc123",
+        "BUILDKITE_MESSAGE" => "Fix login"
+      })
+
+      ctx.branch  #=> "feature/login"
+  """
   @spec from_env(%{String.t() => String.t()}) :: t()
   def from_env(env) when is_map(env) do
     branch = Map.get(env, "BUILDKITE_BRANCH", "")
@@ -55,6 +82,12 @@ defmodule Pipette.Context do
     }
   end
 
+  @doc """
+  Build a context from the current system environment.
+
+  Convenience wrapper that calls `from_env(System.get_env())`.
+  Used in production when running inside a Buildkite agent.
+  """
   @spec from_system_env() :: t()
   def from_system_env do
     from_env(System.get_env())

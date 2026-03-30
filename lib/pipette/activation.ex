@@ -1,16 +1,70 @@
 defmodule Pipette.Activation do
   @moduledoc """
-  The activation engine -- determines which groups and steps should run.
+  The activation engine — determines which groups and steps should run.
 
   Combines branch policies, scope-based change detection, commit message
   targeting, dependency propagation, and `only` branch filtering into
   a single resolution pipeline.
+
+  ## Algorithm
+
+  The activation engine runs through these phases in order:
+
+  1. **Branch policy** — match the current branch against `Pipette.Branch`
+     patterns. `scopes: :all` activates everything; a scope list restricts
+     to named scopes; `nil` falls through to file detection.
+
+  2. **Targeting** — if not disabled, check for `[ci:group]` in the commit
+     message or the `CI_TARGET` env var. When found, activate only targeted
+     groups (plus their transitive dependencies via `Pipette.Graph`).
+
+  3. **Scope matching** — test each scope's file patterns against the
+     changed files. Fire matching scopes. If any fired scope has
+     `activates: :all`, activate all groups. Otherwise activate groups
+     bound to fired scopes.
+
+  4. **Force activation** — add groups specified by `force_activate` env
+     vars (e.g. `FORCE_DEPLOY=true`).
+
+  5. **Dependency propagation** — pull in transitive dependencies of active
+     groups. Scopeless groups (no `:scope` field) are activated when any of
+     their `depends_on` groups are active.
+
+  6. **`only` filter** — remove groups whose `:only` branch pattern doesn't
+     match the current branch. Force-activated groups bypass this filter.
+
+  7. **Step filter** — if targeting specified individual steps (e.g.
+     `[ci:api/test]`), keep only those steps and their intra-group
+     dependencies.
+
+  ## Example
+
+      result = Pipette.Activation.resolve(pipeline, ctx, changed_files, force_groups)
+      result.groups  #=> [%Pipette.Group{name: :api, ...}]
   """
 
   alias Pipette.{Context, Git, Target}
 
   @type result :: %{groups: [Pipette.Group.t()]}
 
+  @doc """
+  Resolve which groups and steps should be active for this build.
+
+  Takes the full pipeline definition, the runtime context, the list of changed
+  files (or `:all` to activate everything), and a set of force-activated group
+  names (or `:all`).
+
+  Returns a map with a `:groups` key containing the list of active
+  `Pipette.Group` structs, with steps filtered if step-level targeting is active.
+
+  ## Examples
+
+      result = Pipette.Activation.resolve(pipeline, ctx, ["apps/api/lib/user.ex"])
+      result.groups  #=> [%Pipette.Group{name: :api, ...}]
+
+      result = Pipette.Activation.resolve(pipeline, ctx, :all)
+      result.groups  #=> all groups in the pipeline
+  """
   @spec resolve(Pipette.Pipeline.t(), Context.t(), [String.t()] | :all, MapSet.t(atom()) | :all) ::
           result()
   def resolve(

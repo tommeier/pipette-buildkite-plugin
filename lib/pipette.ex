@@ -2,7 +2,7 @@ defmodule Pipette do
   @moduledoc """
   Declarative Buildkite pipeline generation for Elixir monorepos.
 
-  Define your pipeline as plain Elixir structs -- no macros, no DSL,
+  Define your CI pipeline as plain Elixir structs — no macros, no DSL,
   no metaprogramming. Pipette inspects changed files, applies branch
   policies and scope rules, then generates a Buildkite YAML pipeline
   containing only the groups that need to run.
@@ -16,7 +16,7 @@ defmodule Pipette do
         def pipeline do
           %Pipette.Pipeline{
             branches: [
-              %Pipette.Branch{pattern: "main", scopes: :all}
+              %Pipette.Branch{pattern: "main", scopes: :all, disable: [:targeting]}
             ],
             scopes: [
               %Pipette.Scope{name: :api_code, files: ["apps/api/**"]},
@@ -87,12 +87,69 @@ defmodule Pipette do
   8. Resolves trigger steps based on active groups and branch filters
   9. Serializes active groups and triggers to Buildkite YAML
   10. Uploads the YAML via `buildkite-agent pipeline upload` (or returns it in dry-run mode)
+
+  ## Options
+
+  Both `run/2` and `generate/2` accept these options:
+
+    * `:env` — environment variable map (defaults to `System.get_env()`)
+    * `:dry_run` — when `true`, returns YAML instead of uploading (defaults to `DRY_RUN=1`)
+    * `:changed_files` — explicit list of changed files (skips `git diff`)
+    * `:extra_groups` — 2-arity function `(ctx, changed_files) -> [Group.t()]` for dynamic groups
+
+  ## Testing
+
+  Use `generate/2` with explicit `:env` and `:changed_files` to test activation logic:
+
+      {:ok, yaml} = Pipette.generate(MyApp.Pipeline,
+        env: %{
+          "BUILDKITE_BRANCH" => "feature/login",
+          "BUILDKITE_PIPELINE_DEFAULT_BRANCH" => "main",
+          "BUILDKITE_COMMIT" => "abc123",
+          "BUILDKITE_MESSAGE" => "Add login"
+        },
+        changed_files: ["apps/api/lib/user.ex"]
+      )
+
+      assert yaml =~ "api"
+      refute yaml =~ "web"
   """
 
   require Logger
 
   alias Pipette.{Activation, Buildkite, Context, Git}
 
+  @doc """
+  Run the pipeline: validate, resolve activation, and upload to Buildkite.
+
+  Returns:
+    * `:ok` — pipeline uploaded successfully
+    * `{:ok, yaml}` — dry run mode, returns the YAML string
+    * `:noop` — no groups activated (e.g. docs-only changes)
+    * `{:error, message}` — upload failed
+
+  ## Options
+
+    * `:env` — environment variable map (defaults to `System.get_env()`)
+    * `:dry_run` — return YAML instead of uploading (defaults to `DRY_RUN=1` env var)
+    * `:changed_files` — explicit list of changed files (skips `git diff`)
+    * `:extra_groups` — `fn ctx, changed_files -> [Group.t()]` for dynamic groups
+
+  ## Examples
+
+      # Normal CI usage (reads env, runs git diff, uploads):
+      Pipette.run(MyApp.Pipeline)
+
+      # Dry run from command line:
+      # DRY_RUN=1 elixir .buildkite/pipeline.exs
+
+      # Programmatic dry run with explicit inputs:
+      {:ok, yaml} = Pipette.run(MyApp.Pipeline,
+        dry_run: true,
+        env: %{"BUILDKITE_BRANCH" => "main", ...},
+        changed_files: ["apps/api/lib/user.ex"]
+      )
+  """
   @spec run(module(), keyword()) :: {:ok, String.t()} | :ok | :noop | {:error, String.t()}
   def run(pipeline_module, opts \\ []) do
     env = Keyword.get(opts, :env, System.get_env())
@@ -162,7 +219,24 @@ defmodule Pipette do
     end
   end
 
-  @doc "Generate pipeline YAML without uploading. Returns `{:ok, yaml}` or `:noop`."
+  @doc """
+  Generate pipeline YAML without uploading. Convenience wrapper around `run/2`
+  with `dry_run: true`.
+
+  Returns `{:ok, yaml}` when groups are activated, or `:noop` when no groups match.
+
+  ## Examples
+
+      {:ok, yaml} = Pipette.generate(MyApp.Pipeline,
+        env: %{"BUILDKITE_BRANCH" => "main", ...},
+        changed_files: ["apps/api/lib/user.ex"]
+      )
+
+      :noop = Pipette.generate(MyApp.Pipeline,
+        env: %{"BUILDKITE_BRANCH" => "feature/docs", ...},
+        changed_files: ["README.md"]
+      )
+  """
   @spec generate(module(), keyword()) :: {:ok, String.t()} | :noop
   def generate(pipeline_module, opts \\ []) do
     run(pipeline_module, Keyword.put(opts, :dry_run, true))

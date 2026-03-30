@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PIPELINE_FILE="${BUILDKITE_PLUGIN_PIPETTE_PIPELINE:-.buildkite/pipeline.exs}"
+
+echo "--- :pipette: Generating pipeline from ${PIPELINE_FILE}"
+
+if ! command -v elixir &> /dev/null; then
+  echo "Error: Elixir is not installed. Install Elixir or use the Docker variant."
+  echo "See: https://github.com/tommeier/pipette-buildkite-plugin#installation"
+  exit 1
+fi
+
+elixir "${PIPELINE_FILE}"

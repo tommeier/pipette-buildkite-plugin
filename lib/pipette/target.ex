@@ -1,27 +1,48 @@
 defmodule Pipette.Target do
   @moduledoc """
-  Parses pipeline targets from commit messages and CI_TARGET environment variable.
+  Parses pipeline targets from commit messages and the `CI_TARGET` environment variable.
 
   Targets allow developers to manually select which groups and steps
-  to run, bypassing file-based scope detection.
+  to run, bypassing file-based scope detection. This is useful for
+  re-running specific checks or skipping irrelevant CI work.
 
   ## Commit Message Syntax
 
-      [ci:api] Fix login bug
-      [ci:api/test] Fix flaky test
-      [ci:api,web] Update shared types
+  Prefix the commit message with `[ci:<targets>]`:
 
-  ## CI_TARGET Syntax
+      [ci:api] Fix login bug            # run :api group
+      [ci:api/test] Fix flaky test      # run only :test step in :api
+      [ci:api,web] Update shared types  # run :api and :web groups
 
-  Same format as the tag content: `api`, `api/test`, `api,web`
+  Group and step names must match `[a-z_]+`.
 
-  ## Example
+  ## `CI_TARGET` Environment Variable
+
+  Same format as the tag content (without brackets):
+
+      CI_TARGET=api          # run :api group
+      CI_TARGET=api/test     # run only :test step in :api
+      CI_TARGET=api,web      # run :api and :web groups
+
+  Commit message targets take precedence over `CI_TARGET`.
+
+  ## Return Format
+
+  Parsed targets are returned as a map with two keys:
+
+    * `:groups` — `MapSet` of group name atoms to activate
+    * `:steps` — `MapSet` of `{group, step}` tuples for step-level filtering
+
+  ## Examples
 
       Pipette.Target.parse_commit_message("[ci:api] Fix login bug")
       #=> {:ok, %{groups: MapSet.new([:api]), steps: MapSet.new()}}
 
       Pipette.Target.parse_ci_target("api/test")
       #=> {:ok, %{groups: MapSet.new([:api]), steps: MapSet.new([{:api, :test}])}}
+
+      Pipette.Target.resolve(ctx)
+      #=> {:ok, %{groups: ..., steps: ...}} or :none
   """
 
   @type target_set :: %{
@@ -31,6 +52,22 @@ defmodule Pipette.Target do
 
   @commit_message_regex ~r/^\[ci:([a-z_\/,]+)\]/
 
+  @doc """
+  Parse targets from a commit message.
+
+  Looks for a `[ci:...]` prefix at the start of the message.
+
+  ## Examples
+
+      iex> Pipette.Target.parse_commit_message("[ci:api] Fix bug")
+      {:ok, %{groups: MapSet.new([:api]), steps: MapSet.new()}}
+
+      iex> Pipette.Target.parse_commit_message("[ci:api/test] Fix flaky")
+      {:ok, %{groups: MapSet.new([:api]), steps: MapSet.new([{:api, :test}])}}
+
+      iex> Pipette.Target.parse_commit_message("No targets here")
+      :none
+  """
   @spec parse_commit_message(String.t()) :: {:ok, target_set()} | :none
   def parse_commit_message(message) when is_binary(message) do
     case Regex.run(@commit_message_regex, message) do
@@ -39,6 +76,20 @@ defmodule Pipette.Target do
     end
   end
 
+  @doc """
+  Parse targets from the `CI_TARGET` environment variable value.
+
+  ## Examples
+
+      iex> Pipette.Target.parse_ci_target("api")
+      {:ok, %{groups: MapSet.new([:api]), steps: MapSet.new()}}
+
+      iex> Pipette.Target.parse_ci_target("api,web")
+      {:ok, %{groups: MapSet.new([:api, :web]), steps: MapSet.new()}}
+
+      iex> Pipette.Target.parse_ci_target(nil)
+      :none
+  """
   @spec parse_ci_target(String.t() | nil) :: {:ok, target_set()} | :none
   def parse_ci_target(nil), do: :none
   def parse_ci_target(""), do: :none
@@ -47,6 +98,18 @@ defmodule Pipette.Target do
     {:ok, parse_targets(target_str)}
   end
 
+  @doc """
+  Resolve targets from the build context.
+
+  Checks the commit message first, then falls back to `CI_TARGET`.
+  Returns `:none` if no targets are found.
+
+  ## Examples
+
+      ctx = %Pipette.Context{message: "[ci:api] Fix bug", ci_target: nil}
+      Pipette.Target.resolve(ctx)
+      #=> {:ok, %{groups: MapSet.new([:api]), steps: MapSet.new()}}
+  """
   @spec resolve(Pipette.Context.t()) :: {:ok, target_set()} | :none
   def resolve(%Pipette.Context{} = ctx) do
     case parse_commit_message(ctx.message || "") do

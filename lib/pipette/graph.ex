@@ -26,14 +26,17 @@ defmodule Pipette.Graph do
           edges: %{node_id() => MapSet.t(node_id())}
         }
 
+  @doc "Create an empty graph."
   @spec new() :: t()
   def new, do: %__MODULE__{}
 
+  @doc "Add a node to the graph. Returns the graph unchanged if the node already exists."
   @spec add_node(t(), node_id()) :: t()
   def add_node(%__MODULE__{} = graph, node) do
     %{graph | nodes: MapSet.put(graph.nodes, node)}
   end
 
+  @doc "Add a directed edge from `from` to `to`. Both nodes are added if not present."
   @spec add_edge(t(), node_id(), node_id()) :: t()
   def add_edge(%__MODULE__{} = graph, from, to) do
     graph = add_node(graph, from)
@@ -42,11 +45,13 @@ defmodule Pipette.Graph do
     %{graph | edges: edges}
   end
 
+  @doc "Check if a node exists in the graph."
   @spec has_node?(t(), node_id()) :: boolean()
   def has_node?(%__MODULE__{} = graph, node) do
     MapSet.member?(graph.nodes, node)
   end
 
+  @doc "Check if a directed edge exists from `from` to `to`."
   @spec has_edge?(t(), node_id(), node_id()) :: boolean()
   def has_edge?(%__MODULE__{} = graph, from, to) do
     case Map.get(graph.edges, from) do
@@ -55,6 +60,7 @@ defmodule Pipette.Graph do
     end
   end
 
+  @doc "Return all edges as a list of `{from, to}` tuples."
   @spec edges(t()) :: [{node_id(), node_id()}]
   def edges(%__MODULE__{} = graph) do
     Enum.flat_map(graph.edges, fn {from, targets} ->
@@ -62,6 +68,22 @@ defmodule Pipette.Graph do
     end)
   end
 
+  @doc """
+  Build a dependency graph from a list of groups.
+
+  Creates nodes for each group and step, with edges representing
+  `depends_on` relationships at both the group and step level.
+
+  ## Examples
+
+      groups = [
+        %Pipette.Group{name: :lint, steps: []},
+        %Pipette.Group{name: :test, depends_on: :lint, steps: []}
+      ]
+
+      graph = Pipette.Graph.from_groups(groups)
+      Pipette.Graph.has_edge?(graph, :test, :lint)  #=> true
+  """
   @spec from_groups([Pipette.Group.t()]) :: t()
   def from_groups(groups) do
     Enum.reduce(groups, new(), fn group, graph ->
@@ -121,11 +143,18 @@ defmodule Pipette.Graph do
     end
   end
 
+  @doc "Return `true` if the graph has no cycles."
   @spec acyclic?(t()) :: boolean()
   def acyclic?(%__MODULE__{} = graph) do
     find_cycle(graph) == nil
   end
 
+  @doc """
+  Find a cycle in the graph, if one exists.
+
+  Returns a list of nodes forming the cycle path, or `nil` if the graph
+  is acyclic. Uses DFS with three-color marking.
+  """
   @spec find_cycle(t()) :: [node_id()] | nil
   def find_cycle(%__MODULE__{} = graph) do
     state = %{colors: %{}, path: [], cycle: nil}
@@ -182,6 +211,23 @@ defmodule Pipette.Graph do
     end
   end
 
+  @doc """
+  Compute the transitive dependencies (ancestors) of a node.
+
+  Follows edges recursively to find all nodes that `node` depends on,
+  directly or transitively.
+
+  ## Examples
+
+      graph = Pipette.Graph.from_groups([
+        %Pipette.Group{name: :lint, steps: []},
+        %Pipette.Group{name: :test, depends_on: :lint, steps: []},
+        %Pipette.Group{name: :deploy, depends_on: :test, steps: []}
+      ])
+
+      Pipette.Graph.ancestors(graph, :deploy)
+      #=> MapSet.new([:test, :lint])
+  """
   @spec ancestors(t(), node_id()) :: MapSet.t(node_id())
   def ancestors(%__MODULE__{} = graph, node) do
     do_ancestors(graph, node, MapSet.new())

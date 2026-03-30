@@ -1,0 +1,11 @@
+name: Pipette
+description: Declarative Buildkite pipeline generation for Elixir monorepos
+author: https://github.com/tommeier
+requirements: []
+configuration:
+  properties:
+    pipeline:
+      type: string
+      description: "Path to the Elixir pipeline script (e.g., .buildkite/pipeline.exs)"
+  required:
+    - pipeline
