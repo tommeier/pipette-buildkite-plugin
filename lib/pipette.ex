@@ -1,6 +1,6 @@
 defmodule Pipette do
   @moduledoc """
-  Declarative Buildkite pipeline generation for Elixir monorepos.
+  Declarative Buildkite pipeline generation for monorepos, written in Elixir.
 
   Define your CI pipeline as plain Elixir structs — no macros, no DSL,
   no metaprogramming. Pipette inspects changed files, applies branch

@@ -12,7 +12,7 @@ defmodule Pipette.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       name: "Pipette",
-      description: "Declarative Buildkite pipeline generation for Elixir monorepos",
+      description: "Declarative Buildkite pipeline generation for monorepos, written in Elixir",
       package: package(),
       docs: docs(),
       source_url: @source_url

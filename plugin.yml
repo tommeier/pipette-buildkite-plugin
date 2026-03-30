@@ -1,5 +1,5 @@
 name: Pipette
-description: Declarative Buildkite pipeline generation for Elixir monorepos
+description: Declarative Buildkite pipeline generation for monorepos, written in Elixir
 author: https://github.com/tommeier
 requirements: []
 configuration:

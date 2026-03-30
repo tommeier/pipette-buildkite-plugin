@@ -4,7 +4,7 @@
 [![CI](https://github.com/tommeier/pipette-buildkite-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/tommeier/pipette-buildkite-plugin/actions)
 [![License](https://img.shields.io/hexpm/l/pipette.svg)](LICENSE)
 
-**Declarative Buildkite pipeline generation for Elixir monorepos.**
+**Declarative Buildkite pipeline generation for monorepos, written in Elixir.**
 
 Define your CI pipeline as plain Elixir structs — scope-based change detection, branch policies, commit message targeting, dependency graphs, and dynamic group generation. No metaprogramming, no DSL framework, just structs and functions.
 
