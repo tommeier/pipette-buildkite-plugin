@@ -11,7 +11,7 @@ defmodule Acme.Pipeline do
 
   @impl true
   def pipeline do
-    pipeline(
+    build_pipeline(
       branches: [
         branch("main", scopes: :all, disable: [:targeting]),
         branch("merge-queue/**", scopes: :all, disable: [:targeting]),
@@ -298,7 +298,7 @@ Setting `FORCE_DEPLOY=true` on a Buildkite build activates `:api`, `:web`, and `
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:buildkite_pipette, "~> 0.2"}])
+Mix.install([{:buildkite_pipette, "~> 0.3"}])
 Code.require_file("lib/acme/pipeline.ex")
 Pipette.run(Acme.Pipeline)
 ```

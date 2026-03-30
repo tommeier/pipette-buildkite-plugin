@@ -25,7 +25,7 @@ Discover packages in a `packages/` directory and generate a group for each with 
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:buildkite_pipette, "~> 0.2"}])
+Mix.install([{:buildkite_pipette, "~> 0.3"}])
 
 defmodule MyApp.Pipeline do
   @behaviour Pipette.Pipeline
@@ -33,7 +33,7 @@ defmodule MyApp.Pipeline do
 
   @impl true
   def pipeline do
-    pipeline(
+    build_pipeline(
       branches: [
         branch("main", scopes: :all)
       ],

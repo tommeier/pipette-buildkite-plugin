@@ -10,7 +10,7 @@ defmodule Pipette.DSL do
 
         @impl true
         def pipeline do
-          pipeline(
+          build_pipeline(
             branches: [
               branch("main", scopes: :all, disable: [:targeting])
             ],
@@ -36,8 +36,12 @@ defmodule Pipette.DSL do
   """
 
   @doc "Build a `%Pipette.Pipeline{}` from keyword options."
+  @spec build_pipeline(keyword()) :: Pipette.Pipeline.t()
+  def build_pipeline(opts \\ []), do: struct!(Pipette.Pipeline, opts)
+
+  @doc deprecated: "Use build_pipeline/1 instead"
   @spec pipeline(keyword()) :: Pipette.Pipeline.t()
-  def pipeline(opts \\ []), do: struct!(Pipette.Pipeline, opts)
+  def pipeline(opts \\ []), do: build_pipeline(opts)
 
   @doc "Build a `%Pipette.Branch{}` with the given pattern."
   @spec branch(String.t(), keyword()) :: Pipette.Branch.t()

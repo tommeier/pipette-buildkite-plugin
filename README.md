@@ -32,7 +32,7 @@ defmodule MyApp.Pipeline do
 
   @impl true
   def pipeline do
-    pipeline(
+    build_pipeline(
       branches: [
         branch("main", scopes: :all, disable: [:targeting])
       ],
@@ -90,7 +90,7 @@ If you prefer explicit struct construction, the DSL is entirely optional — eve
 Create a pipeline script at `.buildkite/pipeline.exs`:
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.1"}])
+Mix.install([{:buildkite_pipette, "~> 0.3"}])
 Pipette.run(MyApp.Pipeline)
 ```
 
@@ -108,14 +108,14 @@ Add `pipette` to your `mix.exs` dependencies:
 
 ```elixir
 def deps do
-  [{:buildkite_pipette, "~> 0.1"}]
+  [{:buildkite_pipette, "~> 0.3"}]
 end
 ```
 
 Or use `Mix.install` in standalone pipeline scripts (no project required):
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.1"}])
+Mix.install([{:buildkite_pipette, "~> 0.3"}])
 ```
 
 ## How It Works
@@ -259,7 +259,7 @@ This repository doubles as a Buildkite plugin. Instead of adding `pipette` to a 
 ```yaml
 steps:
   - plugins:
-      - tommeier/pipette#v0.1.0:
+      - tommeier/pipette#v0.3.0:
           pipeline: .buildkite/pipeline.exs
 ```
 
@@ -267,7 +267,7 @@ The plugin runs `elixir <pipeline>` — your pipeline script should use `Mix.ins
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:buildkite_pipette, "~> 0.1"}])
+Mix.install([{:buildkite_pipette, "~> 0.3"}])
 
 defmodule MyApp.Pipeline do
   @behaviour Pipette.Pipeline

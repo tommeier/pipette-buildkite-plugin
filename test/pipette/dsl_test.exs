@@ -3,10 +3,10 @@ defmodule Pipette.DSLTest do
 
   import Pipette.DSL
 
-  describe "pipeline/1" do
+  describe "build_pipeline/1" do
     test "builds a pipeline struct" do
       p =
-        pipeline(
+        build_pipeline(
           branches: [branch("main", scopes: :all)],
           scopes: [scope(:code, files: ["lib/**"])],
           groups: [group(:app, label: "App", steps: [step(:test, label: "Test")])],
@@ -22,8 +22,12 @@ defmodule Pipette.DSLTest do
 
     test "raises on unknown keys" do
       assert_raise KeyError, fn ->
-        pipeline(unknown_option: true)
+        build_pipeline(unknown_option: true)
       end
+    end
+
+    test "pipeline/1 is a deprecated alias" do
+      assert pipeline(ignore: ["*.md"]) == build_pipeline(ignore: ["*.md"])
     end
   end
 
