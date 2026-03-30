@@ -2,7 +2,7 @@ defmodule Pipette.MixProject do
   use Mix.Project
 
   @version "0.1.0"
-  @source_url "https://github.com/tommeier/pipette"
+  @source_url "https://github.com/tommeier/pipette-buildkite-plugin"
 
   def project do
     [
@@ -33,10 +33,8 @@ defmodule Pipette.MixProject do
   defp package do
     [
       licenses: ["MIT"],
-      links: %{
-        "GitHub" => @source_url,
-        "Buildkite Plugin" => "https://github.com/tommeier/pipette-buildkite-plugin"
-      }
+      files: ~w(lib mix.exs README.md LICENSE .formatter.exs),
+      links: %{"GitHub" => @source_url}
     ]
   end
 
