@@ -397,9 +397,7 @@ defmodule Pipette do
     File.write!(tmp, yaml)
 
     try do
-      case System.cmd("buildkite-agent", ["pipeline", "upload", tmp],
-             stderr_to_stdout: true
-           ) do
+      case System.cmd("buildkite-agent", ["pipeline", "upload", tmp], stderr_to_stdout: true) do
         {_output, 0} ->
           Logger.info("Pipeline uploaded successfully")
           :ok
