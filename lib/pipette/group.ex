@@ -36,7 +36,7 @@ defmodule Pipette.Group do
       }
   """
 
-  defstruct [:name, :label, :scope, :depends_on, :only, :key, steps: []]
+  defstruct [:name, :label, :scope, :depends_on, :only, :key, :__spark_metadata__, steps: []]
 
   @type t :: %__MODULE__{
           name: atom(),

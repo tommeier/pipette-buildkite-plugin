@@ -68,7 +68,8 @@ defmodule Pipette.Step do
     :branches,
     :if_condition,
     :matrix,
-    :key
+    :key,
+    :__spark_metadata__
   ]
 
   @type t :: %__MODULE__{

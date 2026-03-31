@@ -70,7 +70,8 @@ defmodule Pipette.Pipeline do
             env: nil,
             secrets: nil,
             cache: nil,
-            force_activate: %{}
+            force_activate: %{},
+            __spark_metadata__: nil
 
   @type t :: %__MODULE__{
           branches: [Pipette.Branch.t()],

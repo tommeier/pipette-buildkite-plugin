@@ -34,7 +34,7 @@ defmodule Pipette.Scope do
       }
   """
 
-  defstruct [:name, :files, :exclude, :activates]
+  defstruct [:name, :files, :exclude, :activates, :__spark_metadata__]
 
   @type t :: %__MODULE__{
           name: atom(),
