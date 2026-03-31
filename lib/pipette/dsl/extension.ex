@@ -12,8 +12,7 @@ defmodule Pipette.Dsl.Extension do
       label: [type: :string, doc: "Display label in Buildkite UI (supports emoji)."],
       command: [
         type: {:or, [:string, {:list, :string}]},
-        required: true,
-        doc: "Shell command(s) to execute."
+        doc: "Shell command(s) to execute. Omit for plugin-only steps."
       ],
       timeout_in_minutes: [type: :pos_integer, doc: "Step timeout in minutes."],
       soft_fail: [type: :any, doc: "Soft fail config (`true`, or list of exit code rules)."],
