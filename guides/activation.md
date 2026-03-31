@@ -11,10 +11,8 @@ Activation runs through these phases in order:
 The engine matches the current branch against defined branch policies:
 
 ```elixir
-branches: [
-  %Pipette.Branch{pattern: "main", scopes: :all, disable: [:targeting]},
-  %Pipette.Branch{pattern: "release/*", scopes: [:api_code, :web_code]}
-]
+branch("main", scopes: :all, disable: [:targeting])
+branch("release/*", scopes: [:api_code, :web_code])
 ```
 
 - **`scopes: :all`** — activates every group, skips file-based detection entirely
@@ -46,10 +44,8 @@ If no branch policy override and no targeting, the engine:
 6. Otherwise, activates groups whose `scope` is in the fired set
 
 ```elixir
-scopes: [
-  %Pipette.Scope{name: :api_code, files: ["apps/api/**"]},
-  %Pipette.Scope{name: :infra, files: ["infra/**"], activates: :all}
-]
+scope(:api_code, files: ["apps/api/**"])
+scope(:infra, files: ["infra/**"], activates: :all)
 ```
 
 Changing `infra/main.tf` fires the `:infra` scope, which has `activates: :all`, so every group runs.
@@ -59,10 +55,7 @@ Changing `infra/main.tf` fires the `:infra` scope, which has `activates: :all`, 
 Groups can be force-activated via environment variables:
 
 ```elixir
-force_activate: %{
-  "FORCE_DEPLOY" => [:web, :deploy],
-  "FORCE_ALL" => :all
-}
+force_activate(%{"FORCE_DEPLOY" => [:web, :deploy], "FORCE_ALL" => :all})
 ```
 
 When `FORCE_DEPLOY=true` is set, `:web` and `:deploy` are added to the active set. Force-activated groups bypass the `only` branch filter — they run on any branch.
@@ -76,10 +69,16 @@ Two kinds of dependency propagation occur:
 **Scopeless propagation**: Groups without a `scope` are activated when any of their `depends_on` groups are active. This is useful for deploy/release groups that should run whenever their upstream groups run.
 
 ```elixir
-groups: [
-  %Pipette.Group{name: :api, scope: :api_code, steps: [...]},
-  %Pipette.Group{name: :deploy, depends_on: :api, only: "main", steps: [...]}
-]
+group :api do
+  scope(:api_code)
+  # ...steps
+end
+
+group :deploy do
+  depends_on(:api)
+  only("main")
+  # ...steps
+end
 ```
 
 When `:api` is activated by scope matching, `:deploy` is pulled in because it `depends_on: :api` and has no scope of its own.
@@ -89,8 +88,15 @@ When `:api` is activated by scope matching, `:deploy` is pulled in because it `d
 After all activation and propagation, groups are filtered by their `only` field:
 
 ```elixir
-%Pipette.Group{name: :deploy, only: "main", ...}
-%Pipette.Group{name: :release, only: ["main", "release/*"], ...}
+group :deploy do
+  only("main")
+  # ...
+end
+
+group :release do
+  only(["main", "release/*"])
+  # ...
+end
 ```
 
 The `:deploy` group is removed if the current branch is not `main`. Glob patterns are supported.
@@ -117,11 +123,10 @@ Scopes use glob patterns with `**` and `*`:
 - Patterns without `/` also match against the basename
 
 ```elixir
-%Pipette.Scope{
-  name: :api_code,
+scope(:api_code,
   files: ["apps/api/**", "libs/shared/**"],
   exclude: ["**/*.md", "apps/api/docs/**"]
-}
+)
 ```
 
 A file must match at least one `files` pattern and not match any `exclude` pattern to fire the scope.
@@ -131,7 +136,7 @@ A file must match at least one `files` pattern and not match any `exclude` patte
 Pipeline-level `ignore` patterns prevent activation when only ignored files changed:
 
 ```elixir
-ignore: ["docs/**", "*.md", "LICENSE"]
+ignore(["docs/**", "*.md", "LICENSE"])
 ```
 
 If a commit changes only `README.md` and `docs/guide.md`, the pipeline returns `:noop` and no Buildkite steps are generated.
@@ -143,20 +148,23 @@ If the commit also changes `apps/api/lib/user.ex`, the ignore patterns are not a
 Steps can depend on specific steps in other groups using tuple syntax:
 
 ```elixir
-import Pipette.DSL
+group :deploy do
+  label(":rocket: Deploy")
+  depends_on([:api, :web])
+  only("main")
 
-group(:deploy, label: ":rocket: Deploy", depends_on: [:api, :web], only: "main", steps: [
   step(:deploy_api,
     label: "Deploy API",
     depends_on: {:api, :test},
     command: "./scripts/deploy-api.sh"
-  ),
+  )
+
   step(:deploy_web,
     label: "Deploy Web",
     depends_on: {:web, :build},
     command: "./scripts/deploy-web.sh"
   )
-])
+end
 ```
 
 The tuple `{:api, :test}` resolves to the Buildkite step key `"api-test"`. This lets you express fine-grained dependencies — the deploy step waits for the specific upstream step, not just the group as a whole.
@@ -178,11 +186,10 @@ Here `:setup` refers to another step within the same group, while the tuples ref
 A scope with `activates: :all` causes all groups to activate when that scope fires:
 
 ```elixir
-%Pipette.Scope{
-  name: :root_config,
+scope(:root_config,
   files: [".buildkite/**", "mix.exs", ".tool-versions"],
   activates: :all
-}
+)
 ```
 
 This is useful for CI config files, lock files, or shared configuration that could affect any part of the pipeline.

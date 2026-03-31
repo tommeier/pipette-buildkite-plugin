@@ -10,48 +10,51 @@ This guide walks through setting up Pipette for a Buildkite pipeline in an Elixi
 
 ## Step 1: Define your pipeline module
 
-Create a module that implements the `Pipette.Pipeline` behaviour. This is where you define your scopes, groups, and steps.
+Create a module that uses `Pipette.DSL`. This is where you define your scopes, groups, and steps as top-level declarations.
 
 ```elixir
 defmodule MyApp.Pipeline do
-  @behaviour Pipette.Pipeline
-  import Pipette.DSL
+  use Pipette.DSL
 
-  @impl true
-  def pipeline do
-    build_pipeline(
-      branches: [
-        branch("main", scopes: :all, disable: [:targeting]),
-        branch("merge-queue/**", scopes: :all, disable: [:targeting])
-      ],
-      scopes: [
-        scope(:api_code, files: ["apps/api/**"]),
-        scope(:web_code, files: ["apps/web/**"]),
-        scope(:root_config, files: [".buildkite/**", "mix.exs"], activates: :all)
-      ],
-      groups: [
-        group(:api, label: ":elixir: API", scope: :api_code, steps: [
-          step(:test, label: "Test", command: "mix test", timeout_in_minutes: 15),
-          step(:lint, label: "Lint", command: "mix credo --strict", timeout_in_minutes: 10)
-        ]),
-        group(:web, label: ":globe_with_meridians: Web", scope: :web_code, steps: [
-          step(:test, label: "Test", command: "pnpm test"),
-          step(:build, label: "Build", command: "pnpm build")
-        ]),
-        group(:deploy, label: ":rocket: Deploy", depends_on: [:api, :web], only: "main", steps: [
-          step(:push, label: "Push", command: "./deploy.sh")
-        ])
-      ],
-      triggers: [
-        trigger(:notify, pipeline: "slack-notify", depends_on: :deploy, only: "main")
-      ],
-      ignore: ["docs/**", "*.md", "LICENSE"]
-    )
+  branch("main", scopes: :all, disable: [:targeting])
+  branch("merge-queue/**", scopes: :all, disable: [:targeting])
+
+  scope(:api_code, files: ["apps/api/**"])
+  scope(:web_code, files: ["apps/web/**"])
+  scope(:root_config, files: [".buildkite/**", "mix.exs"], activates: :all)
+
+  ignore(["docs/**", "*.md", "LICENSE"])
+
+  group :api do
+    label(":elixir: API")
+    scope(:api_code)
+    step(:test, label: "Test", command: "mix test", timeout_in_minutes: 15)
+    step(:lint, label: "Lint", command: "mix credo --strict", timeout_in_minutes: 10)
+  end
+
+  group :web do
+    label(":globe_with_meridians: Web")
+    scope(:web_code)
+    step(:test, label: "Test", command: "pnpm test")
+    step(:build, label: "Build", command: "pnpm build")
+  end
+
+  group :deploy do
+    label(":rocket: Deploy")
+    depends_on([:api, :web])
+    only("main")
+    step(:push, label: "Push", command: "./deploy.sh")
+  end
+
+  trigger :notify do
+    pipeline("slack-notify")
+    depends_on(:deploy)
+    only("main")
   end
 end
 ```
 
-> The DSL functions (`pipeline/1`, `branch/2`, `scope/2`, `group/2`, `step/2`, `trigger/2`) are plain functions that return structs. You can also construct `%Pipette.Pipeline{}` and friends directly — see the [Raw Structs section in the README](../README.md#raw-structs).
+> The DSL is powered by [Spark](https://hexdocs.pm/spark). Compile-time verifiers catch scope reference errors, dependency cycles, and label collisions before your pipeline ever runs.
 
 Key decisions:
 
@@ -66,17 +69,13 @@ Key decisions:
 Create `.buildkite/pipeline.exs`:
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.3"}])
+Mix.install([{:buildkite_pipette, "~> 0.4"}])
 
 # Define the pipeline module inline, or Code.require_file it from elsewhere
 defmodule MyApp.Pipeline do
-  @behaviour Pipette.Pipeline
-  import Pipette.DSL
+  use Pipette.DSL
 
-  @impl true
-  def pipeline do
-    # ... same as above
-  end
+  # ... same as above
 end
 
 Pipette.run(MyApp.Pipeline)
@@ -85,7 +84,7 @@ Pipette.run(MyApp.Pipeline)
 If your pipeline module is in a separate file (e.g. `lib/my_app/pipeline.ex`), you can require it:
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.3"}])
+Mix.install([{:buildkite_pipette, "~> 0.4"}])
 Code.require_file("lib/my_app/pipeline.ex")
 Pipette.run(MyApp.Pipeline)
 ```
@@ -105,7 +104,7 @@ Or use the Buildkite plugin:
 ```yaml
 steps:
   - plugins:
-      - tommeier/pipette#v0.3.0:
+      - tommeier/pipette#v0.4.0:
           pipeline: .buildkite/pipeline.exs
 ```
 
@@ -121,7 +120,7 @@ DRY_RUN=1 elixir .buildkite/pipeline.exs
 You can also simulate a specific branch and changed files in an IEx session:
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.3"}])
+Mix.install([{:buildkite_pipette, "~> 0.4"}])
 
 # Load your pipeline module
 Code.require_file(".buildkite/pipeline.exs")

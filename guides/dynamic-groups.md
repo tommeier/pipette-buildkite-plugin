@@ -25,31 +25,21 @@ Discover packages in a `packages/` directory and generate a group for each with 
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:buildkite_pipette, "~> 0.3"}])
+Mix.install([{:buildkite_pipette, "~> 0.4"}])
 
 defmodule MyApp.Pipeline do
-  @behaviour Pipette.Pipeline
-  import Pipette.DSL
+  use Pipette.DSL
 
-  @impl true
-  def pipeline do
-    build_pipeline(
-      branches: [
-        branch("main", scopes: :all)
-      ],
-      scopes: [
-        scope(:api_code, files: ["apps/api/**"])
-      ],
-      groups: [
-        group(:api, label: ":elixir: API", scope: :api_code, steps: [
-          step(:test, label: "Test", command: "mix test", timeout_in_minutes: 15)
-        ])
-      ]
-    )
+  branch("main", scopes: :all)
+
+  scope(:api_code, files: ["apps/api/**"])
+
+  group :api do
+    label(":elixir: API")
+    scope(:api_code)
+    step(:test, label: "Test", command: "mix test", timeout_in_minutes: 15)
   end
 end
-
-import Pipette.DSL
 
 Pipette.run(MyApp.Pipeline,
   extra_groups: fn _ctx, _changed_files ->
@@ -57,29 +47,37 @@ Pipette.run(MyApp.Pipeline,
     |> File.ls!()
     |> Enum.filter(&File.dir?(Path.join("packages", &1)))
     |> Enum.map(fn pkg ->
-      group(String.to_atom(pkg), label: ":package: #{pkg}", key: pkg, steps: [
-        step(:format,
-          label: "Format",
-          command: "cd packages/#{pkg} && mix format --check-formatted",
-          key: "#{pkg}-format",
-          timeout_in_minutes: 5
-        ),
-        step(:test,
-          label: "Test",
-          command: "cd packages/#{pkg} && mix test",
-          key: "#{pkg}-test",
-          timeout_in_minutes: 15,
-          env: %{"MIX_ENV" => "test"},
-          retry: %{automatic: [%{exit_status: -1, limit: 2}]}
-        ),
-        step(:build,
-          label: "Build",
-          command: "cd packages/#{pkg} && mix compile --warnings-as-errors",
-          key: "#{pkg}-build",
-          depends_on: "#{pkg}-format",
-          timeout_in_minutes: 10
-        )
-      ])
+      %Pipette.Group{
+        name: String.to_atom(pkg),
+        label: ":package: #{pkg}",
+        key: pkg,
+        steps: [
+          %Pipette.Step{
+            name: :format,
+            label: "Format",
+            command: "cd packages/#{pkg} && mix format --check-formatted",
+            key: "#{pkg}-format",
+            timeout_in_minutes: 5
+          },
+          %Pipette.Step{
+            name: :test,
+            label: "Test",
+            command: "cd packages/#{pkg} && mix test",
+            key: "#{pkg}-test",
+            timeout_in_minutes: 15,
+            env: %{"MIX_ENV" => "test"},
+            retry: %{automatic: [%{exit_status: -1, limit: 2}]}
+          },
+          %Pipette.Step{
+            name: :build,
+            label: "Build",
+            command: "cd packages/#{pkg} && mix compile --warnings-as-errors",
+            key: "#{pkg}-build",
+            depends_on: "#{pkg}-format",
+            timeout_in_minutes: 10
+          }
+        ]
+      }
     end)
   end
 )
@@ -115,28 +113,32 @@ end
 ## Important Notes
 
 - **Keys must be unique**: Dynamic group and step keys must not collide with static pipeline groups. Use the package name as a prefix.
-- **No validation**: Extra groups bypass `Pipette.validate!/1` — scope references, dependency references, and cycle detection are not checked for dynamically added groups.
+- **No validation**: Extra groups bypass compile-time Spark verifiers — scope references, dependency references, and cycle detection are not checked for dynamically added groups.
 - **Appended after activation**: Extra groups are added after the activation engine runs. They always appear in the pipeline regardless of scope matching.
 - **Branch filtering**: Extra groups do not go through `only` branch filtering. If you need branch-specific behavior, filter in your callback using `ctx.branch`.
 
 ## Branch-Aware Dynamic Groups
 
 ```elixir
-import Pipette.DSL
-
 extra_groups: fn ctx, _changed_files ->
   if ctx.is_default_branch do
     [
-      group(:publish, label: ":rocket: Publish Packages", key: "publish", steps: [
-        step(:publish,
-          label: "Publish",
-          command: "./scripts/publish-all.sh",
-          key: "publish-all",
-          timeout_in_minutes: 15,
-          concurrency: 1,
-          concurrency_group: "publish-packages"
-        )
-      ])
+      %Pipette.Group{
+        name: :publish,
+        label: ":rocket: Publish Packages",
+        key: "publish",
+        steps: [
+          %Pipette.Step{
+            name: :publish,
+            label: "Publish",
+            command: "./scripts/publish-all.sh",
+            key: "publish-all",
+            timeout_in_minutes: 15,
+            concurrency: 1,
+            concurrency_group: "publish-packages"
+          }
+        ]
+      }
     ]
   else
     []

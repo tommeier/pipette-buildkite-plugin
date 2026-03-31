@@ -6,7 +6,7 @@
 
 **Declarative Buildkite pipeline generation for monorepos, written in Elixir.**
 
-Define your CI pipeline as plain Elixir structs — scope-based change detection, branch policies, commit message targeting, dependency graphs, and dynamic group generation. No metaprogramming, no compile-time magic, just structs and functions.
+Define your CI pipeline with a declarative DSL powered by [Spark](https://hexdocs.pm/spark) — scope-based change detection, branch policies, commit message targeting, dependency graphs, and dynamic group generation. Compile-time validation catches misconfigured scopes, missing dependencies, and label conflicts before your pipeline runs.
 
 ## Features
 
@@ -18,8 +18,8 @@ Define your CI pipeline as plain Elixir structs — scope-based change detection
 - **Dynamic groups** — `extra_groups` callback to generate groups at runtime (e.g. discovering packages in a directory)
 - **Branch-scoped groups** — `only: "main"` restricts groups to specific branches
 - **Trigger steps** — fire downstream Buildkite pipelines when conditions are met
+- **Compile-time validation** — Spark verifiers catch scope ref errors, dependency cycles, and label collisions at compile time
 - **YAML output** — generates valid Buildkite pipeline YAML via `ymlr`
-- **Zero runtime dependencies** beyond `ymlr` for YAML serialization
 
 ## Quick Start
 
@@ -27,70 +27,43 @@ Define a pipeline module:
 
 ```elixir
 defmodule MyApp.Pipeline do
-  @behaviour Pipette.Pipeline
-  import Pipette.DSL
+  use Pipette.DSL
 
-  @impl true
-  def pipeline do
-    build_pipeline(
-      branches: [
-        branch("main", scopes: :all, disable: [:targeting])
-      ],
-      scopes: [
-        scope(:api_code, files: ["apps/api/**", "mix.exs"]),
-        scope(:web_code, files: ["apps/web/**", "package.json"]),
-        scope(:infra_code, files: ["infra/**"], exclude: ["**/*.md"])
-      ],
-      groups: [
-        group(:api, label: ":elixir: API", scope: :api_code, steps: [
-          step(:test, label: "Test", command: "mix test", timeout_in_minutes: 15),
-          step(:lint, label: "Lint", command: "mix credo", timeout_in_minutes: 10)
-        ]),
-        group(:web, label: ":react: Web", scope: :web_code, steps: [
-          step(:test, label: "Test", command: "pnpm test", timeout_in_minutes: 15),
-          step(:lint, label: "Lint", command: "pnpm lint", timeout_in_minutes: 10)
-        ]),
-        group(:deploy, label: ":rocket: Deploy", depends_on: [:api, :web], only: "main", steps: [
-          step(:push, label: "Push", command: "./deploy.sh")
-        ])
-      ],
-      ignore: ["docs/**", "*.md"]
-    )
+  branch("main", scopes: :all, disable: [:targeting])
+
+  scope(:api_code, files: ["apps/api/**", "mix.exs"])
+  scope(:web_code, files: ["apps/web/**", "package.json"])
+  scope(:infra_code, files: ["infra/**"], exclude: ["**/*.md"])
+
+  ignore(["docs/**", "*.md"])
+
+  group :api do
+    label(":elixir: API")
+    scope(:api_code)
+    step(:test, label: "Test", command: "mix test", timeout_in_minutes: 15)
+    step(:lint, label: "Lint", command: "mix credo", timeout_in_minutes: 10)
+  end
+
+  group :web do
+    label(":react: Web")
+    scope(:web_code)
+    step(:test, label: "Test", command: "pnpm test", timeout_in_minutes: 15)
+    step(:lint, label: "Lint", command: "pnpm lint", timeout_in_minutes: 10)
+  end
+
+  group :deploy do
+    label(":rocket: Deploy")
+    depends_on([:api, :web])
+    only("main")
+    step(:push, label: "Push", command: "./deploy.sh")
   end
 end
-```
-
-### Raw Structs
-
-If you prefer explicit struct construction, the DSL is entirely optional — every function above just returns a plain struct:
-
-```elixir
-%Pipette.Pipeline{
-  branches: [
-    %Pipette.Branch{pattern: "main", scopes: :all, disable: [:targeting]}
-  ],
-  scopes: [
-    %Pipette.Scope{name: :api_code, files: ["apps/api/**", "mix.exs"]}
-  ],
-  groups: [
-    %Pipette.Group{
-      name: :api,
-      label: ":elixir: API",
-      scope: :api_code,
-      steps: [
-        %Pipette.Step{name: :test, label: "Test", command: "mix test", timeout_in_minutes: 15},
-        %Pipette.Step{name: :lint, label: "Lint", command: "mix credo", timeout_in_minutes: 10}
-      ]
-    }
-  ],
-  ignore: ["docs/**", "*.md"]
-}
 ```
 
 Create a pipeline script at `.buildkite/pipeline.exs`:
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.3"}])
+Mix.install([{:buildkite_pipette, "~> 0.4"}])
 Pipette.run(MyApp.Pipeline)
 ```
 
@@ -108,14 +81,14 @@ Add `pipette` to your `mix.exs` dependencies:
 
 ```elixir
 def deps do
-  [{:buildkite_pipette, "~> 0.3"}]
+  [{:buildkite_pipette, "~> 0.4"}]
 end
 ```
 
 Or use `Mix.install` in standalone pipeline scripts (no project required):
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.3"}])
+Mix.install([{:buildkite_pipette, "~> 0.4"}])
 ```
 
 ## How It Works
@@ -124,11 +97,11 @@ Mix.install([{:buildkite_pipette, "~> 0.3"}])
 pipeline.exs
     |
     v
-pipeline/0 callback
+Spark DSL compile
     |
     v
 +-------------------+
-| Validate config   |  scope refs, dep refs, cycles, labels
+| Validate config   |  scope refs, dep refs, cycles, labels (compile-time verifiers)
 +-------------------+
     |
     v
@@ -169,7 +142,7 @@ The activation engine runs through these phases in order. Each phase narrows (or
 
 ### `Pipette.Pipeline`
 
-Top-level configuration struct.
+Top-level configuration struct. Built automatically from `use Pipette.DSL` declarations via `Pipette.Info.to_pipeline/1`.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -259,7 +232,7 @@ This repository doubles as a Buildkite plugin. Instead of adding `pipette` to a 
 ```yaml
 steps:
   - plugins:
-      - tommeier/pipette#v0.3.0:
+      - tommeier/pipette#v0.4.0:
           pipeline: .buildkite/pipeline.exs
 ```
 
@@ -267,17 +240,12 @@ The plugin runs `elixir <pipeline>` — your pipeline script should use `Mix.ins
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:buildkite_pipette, "~> 0.3"}])
+Mix.install([{:buildkite_pipette, "~> 0.4"}])
 
 defmodule MyApp.Pipeline do
-  @behaviour Pipette.Pipeline
+  use Pipette.DSL
 
-  @impl true
-  def pipeline do
-    %Pipette.Pipeline{
-      # ... your config
-    }
-  end
+  # ... your pipeline definition
 end
 
 Pipette.run(MyApp.Pipeline)
@@ -316,7 +284,7 @@ Commit message targets take precedence over `CI_TARGET`.
 On branches where you want to run everything (like `main`), disable targeting in the branch policy:
 
 ```elixir
-%Pipette.Branch{pattern: "main", scopes: :all, disable: [:targeting]}
+branch("main", scopes: :all, disable: [:targeting])
 ```
 
 See the [Targeting guide](guides/targeting.md) for more details.
@@ -326,12 +294,7 @@ See the [Targeting guide](guides/targeting.md) for more details.
 Force-activate groups via environment variables, bypassing scope detection and `only` branch filters:
 
 ```elixir
-%Pipette.Pipeline{
-  force_activate: %{
-    "FORCE_DEPLOY" => [:web, :deploy],
-    "FORCE_ALL" => :all
-  }
-}
+force_activate(%{"FORCE_DEPLOY" => [:web, :deploy], "FORCE_ALL" => :all})
 ```
 
 When `FORCE_DEPLOY=true` is set on the build, the `:web` and `:deploy` groups are activated regardless of which files changed or which branch you're on.
@@ -344,7 +307,7 @@ For monorepos with dynamic package discovery, use the `extra_groups` option:
 
 ```elixir
 Pipette.run(MyApp.Pipeline,
-  extra_groups: fn ctx, changed_files ->
+  extra_groups: fn _ctx, _changed_files ->
     "packages"
     |> File.ls!()
     |> Enum.filter(&File.dir?(Path.join("packages", &1)))
@@ -366,6 +329,8 @@ Pipette.run(MyApp.Pipeline,
   end
 )
 ```
+
+Note: Extra groups are constructed as plain structs since they're generated at runtime, outside the compile-time DSL.
 
 See the [Dynamic Groups guide](guides/dynamic-groups.md) for more details.
 

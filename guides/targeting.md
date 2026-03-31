@@ -61,11 +61,21 @@ When a group is targeted, its transitive dependencies in the dependency graph ar
 Given:
 
 ```elixir
-groups: [
-  %Pipette.Group{name: :lint, steps: [...]},
-  %Pipette.Group{name: :api, depends_on: :lint, scope: :api_code, steps: [...]},
-  %Pipette.Group{name: :deploy, depends_on: :api, only: "main", steps: [...]}
-]
+group :lint do
+  # ...steps
+end
+
+group :api do
+  depends_on(:lint)
+  scope(:api_code)
+  # ...steps
+end
+
+group :deploy do
+  depends_on(:api)
+  only("main")
+  # ...steps
+end
 ```
 
 Targeting `[ci:deploy]` activates `:deploy`, `:api`, and `:lint` (transitive dependency chain). The `only` branch filter still applies unless the group is force-activated.
@@ -75,13 +85,10 @@ Targeting `[ci:deploy]` activates `:deploy`, `:api`, and `:lint` (transitive dep
 When targeting a specific step like `[ci:api/test]`, intra-group step dependencies are resolved:
 
 ```elixir
-%Pipette.Group{
-  name: :api,
-  steps: [
-    %Pipette.Step{name: :setup, label: "Setup", command: "mix deps.get"},
-    %Pipette.Step{name: :test, label: "Test", command: "mix test", depends_on: :setup}
-  ]
-}
+group :api do
+  step(:setup, label: "Setup", command: "mix deps.get")
+  step(:test, label: "Test", command: "mix test", depends_on: :setup)
+end
 ```
 
 Targeting `api/test` runs both `:setup` and `:test`, because `:test` depends on `:setup`.
@@ -91,10 +98,8 @@ Targeting `api/test` runs both `:setup` and `:test`, because `:test` depends on 
 On branches where you always want to run everything (like `main` or merge queue branches), disable targeting in the branch policy:
 
 ```elixir
-branches: [
-  %Pipette.Branch{pattern: "main", scopes: :all, disable: [:targeting]},
-  %Pipette.Branch{pattern: "merge-queue/**", scopes: :all, disable: [:targeting]}
-]
+branch("main", scopes: :all, disable: [:targeting])
+branch("merge-queue/**", scopes: :all, disable: [:targeting])
 ```
 
 With targeting disabled, `[ci:api]` in the commit message is ignored and all groups run.
@@ -116,19 +121,18 @@ Group and step names must be lowercase letters and underscores (`[a-z_]+`).
 Triggers can pass build parameters to downstream pipelines. This is useful for deploy chains where the downstream pipeline needs to know what to deploy:
 
 ```elixir
-import Pipette.DSL
+trigger :deploy_downstream do
+  pipeline("production-deploy")
+  depends_on(:api)
+  only("main")
 
-trigger(:deploy_downstream,
-  pipeline: "production-deploy",
-  depends_on: :api,
-  only: "main",
-  build: %{
+  build(%{
     commit: "${BUILDKITE_COMMIT}",
     branch: "${BUILDKITE_BRANCH}",
     message: "${BUILDKITE_MESSAGE}",
     env: %{"DEPLOY_ENV" => "production"}
-  }
-)
+  })
+end
 ```
 
 The `build` map is passed directly to the Buildkite trigger step. Buildkite environment variable interpolation (`${VAR}`) works in string values. The downstream pipeline receives these as its build parameters.
