@@ -10,13 +10,25 @@ defmodule Pipette.Dsl.Verifiers.ValidateSteps do
 
     Enum.find_value(groups, :ok, fn group ->
       Enum.find_value(group.steps, fn step ->
-        unless step.label do
-          {:error,
-           Spark.Error.DslError.exception(
-             path: [:pipeline, :group, :step],
-             message:
-               "Step #{inspect(step.name)} in group #{inspect(group.name)} is missing a label"
-           )}
+        cond do
+          !step.label ->
+            {:error,
+             Spark.Error.DslError.exception(
+               path: [:pipeline, :group, :step],
+               message:
+                 "Step #{inspect(step.name)} in group #{inspect(group.name)} is missing a label"
+             )}
+
+          step.concurrency_group && !step.concurrency ->
+            {:error,
+             Spark.Error.DslError.exception(
+               path: [:pipeline, :group, :step],
+               message:
+                 "Step #{inspect(step.name)} in group #{inspect(group.name)} has concurrency_group without concurrency"
+             )}
+
+          true ->
+            nil
         end
       end)
     end)

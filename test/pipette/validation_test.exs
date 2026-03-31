@@ -190,6 +190,30 @@ defmodule Pipette.Dsl.VerifiersTest do
 
       assert :ok = ValidateSteps.verify(build_dsl_state(entities))
     end
+
+    test "returns error when step has concurrency_group without concurrency" do
+      entities = [
+        %Pipette.Group{
+          name: :api,
+          steps: [
+            %Pipette.Step{
+              name: :test,
+              label: "Test",
+              command: "mix test",
+              concurrency_group: "deploy",
+              concurrency: nil
+            }
+          ]
+        }
+      ]
+
+      dsl_state = build_dsl_state(entities)
+
+      assert {:error, %Spark.Error.DslError{message: message}} =
+               ValidateSteps.verify(dsl_state)
+
+      assert message =~ "concurrency_group without concurrency"
+    end
   end
 
   describe "integration — DSL compilation" do
