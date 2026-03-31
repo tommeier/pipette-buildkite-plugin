@@ -163,6 +163,56 @@ defmodule MyApp.PipelineTest do
 end
 ```
 
+## Gotcha: helpers inside DSL entities
+
+Spark DSL macros expand at compile time. Private functions (`defp`) defined on
+the same module are **not available** inside entity arguments:
+
+```elixir
+# ❌ This will fail — defp is not accessible during macro expansion
+defp my_plugin, do: {"plugin#v1.0", nil}
+
+group :app do
+  step(:test, plugins: [my_plugin()])  # undefined function my_plugin/0
+end
+```
+
+Use **module attributes** instead:
+
+```elixir
+# ✅ Module attributes are resolved at compile time
+@my_plugin {"plugin#v1.0", nil}
+
+group :app do
+  step(:test, plugins: [@my_plugin])
+end
+```
+
+For parameterized helpers, define one attribute per variant:
+
+```elixir
+@wif_prod {@wif_plugin, %{audience: @audience, "service-account": @prod_sa}}
+@wif_staging {@wif_plugin, %{audience: @audience, "service-account": @staging_sa}}
+```
+
+Alternatively, define helpers in a **separate module** and `import` it — imported
+functions from already-compiled modules are available during DSL expansion:
+
+```elixir
+defmodule MyApp.PipelineHelpers do
+  def wif_plugin(sa), do: {"gcp-wif#v1.0", %{sa: sa}}
+end
+
+defmodule MyApp.Pipeline do
+  use Pipette.DSL
+  import MyApp.PipelineHelpers
+
+  group :app do
+    step(:deploy, plugins: [wif_plugin("prod@gcp")])
+  end
+end
+```
+
 ## Next steps
 
 - [Production Example](production-example.md) — a realistic monorepo pipeline with deploys, plugins, and triggers
