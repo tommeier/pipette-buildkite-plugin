@@ -1,10 +1,11 @@
 defmodule Pipette.Pipeline do
   @moduledoc """
-  Pipeline configuration struct and behaviour.
+  Pipeline configuration struct.
 
   Holds branches, scopes, groups, triggers, ignore patterns, pipeline-level
-  config (env, secrets, cache), and force activation rules. This is the
-  top-level struct that defines your entire Buildkite pipeline.
+  config (env, secrets, cache), and force activation rules. Used internally
+  by the engine — pipeline modules are defined via `use Pipette.DSL` and
+  converted to this struct by `Pipette.Info.to_pipeline/1`.
 
   ## Fields
 
@@ -22,44 +23,6 @@ defmodule Pipette.Pipeline do
     * `:force_activate` — map of environment variable names to groups to
       force-activate when the env var is set to `"true"` (e.g.
       `%{"FORCE_DEPLOY" => [:web, :deploy]}`)
-
-  ## Example
-
-      %Pipette.Pipeline{
-        branches: [
-          %Pipette.Branch{pattern: "main", scopes: :all, disable: [:targeting]}
-        ],
-        scopes: [
-          %Pipette.Scope{name: :api_code, files: ["apps/api/**"]}
-        ],
-        groups: [
-          %Pipette.Group{name: :api, label: ":elixir: API", scope: :api_code, steps: [...]}
-        ],
-        triggers: [],
-        ignore: ["docs/**", "*.md"],
-        env: %{LANG: "C.UTF-8"},
-        force_activate: %{
-          "FORCE_DEPLOY" => [:web, :deploy]
-        }
-      }
-
-  ## Behaviour
-
-  Modules implementing this behaviour define a `pipeline/0` callback that
-  returns a `%Pipette.Pipeline{}` struct:
-
-      defmodule MyPipeline do
-        @behaviour Pipette.Pipeline
-
-        @impl true
-        def pipeline do
-          %Pipette.Pipeline{
-            scopes: [...],
-            groups: [...],
-            ignore: ["docs/**"]
-          }
-        end
-      end
   """
 
   defstruct branches: [],
@@ -85,5 +48,4 @@ defmodule Pipette.Pipeline do
           force_activate: %{String.t() => [atom()] | :all}
         }
 
-  @callback pipeline() :: t()
 end
