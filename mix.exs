@@ -1,7 +1,7 @@
 defmodule Pipette.MixProject do
   use Mix.Project
 
-  @version "0.3.0"
+  @version "0.4.0"
   @source_url "https://github.com/tommeier/pipette-buildkite-plugin"
 
   def project do
@@ -25,6 +25,7 @@ defmodule Pipette.MixProject do
 
   defp deps do
     [
+      {:spark, "~> 2.6"},
       {:ymlr, "~> 5.0"},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
@@ -56,13 +57,20 @@ defmodule Pipette.MixProject do
       ],
       groups_for_modules: [
         "Pipeline Definition": [
-          Pipette.Pipeline,
           Pipette.DSL,
+          Pipette.Info,
           Pipette.Branch,
           Pipette.Scope,
           Pipette.Group,
           Pipette.Step,
           Pipette.Trigger
+        ],
+        "DSL Internals": [
+          Pipette.Dsl.Extension,
+          Pipette.Dsl.Transformers.GenerateKeys,
+          Pipette.Dsl.Verifiers.ValidateRefs,
+          Pipette.Dsl.Verifiers.ValidateAcyclic,
+          Pipette.Dsl.Verifiers.ValidateSteps
         ],
         Engine: [
           Pipette.Activation,
