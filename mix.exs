@@ -58,6 +58,7 @@ defmodule Pipette.MixProject do
       groups_for_modules: [
         "Pipeline Definition": [
           Pipette.DSL,
+          Pipette.Constructors,
           Pipette.Info,
           Pipette.Branch,
           Pipette.Scope,
