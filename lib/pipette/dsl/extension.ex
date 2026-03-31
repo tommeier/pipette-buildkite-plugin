@@ -59,6 +59,7 @@ defmodule Pipette.Dsl.Extension do
     describe: "A branch policy controlling activation behavior on matching branches.",
     target: Pipette.Branch,
     args: [:pattern],
+    identifier: :pattern,
     schema: [
       pattern: [type: :string, required: true, doc: "Branch name or glob pattern."],
       scopes: [type: {:or, [{:in, [:all]}, {:list, :atom}]}, doc: "`:all` activates every group, or a list of scope names."],
@@ -108,7 +109,7 @@ defmodule Pipette.Dsl.Extension do
       secrets: [type: {:list, :string}, default: [], doc: "Pipeline-level secrets."],
       cache: [type: :keyword_list, doc: "Cache configuration."],
       ignore: [type: {:list, :string}, default: [], doc: "File patterns that never activate CI."],
-      force_activate: [type: :map, default: %{}, doc: "Env var -> group list for forced activation."]
+      force_activate: [type: {:map, :string, {:or, [{:list, :atom}, {:in, [:all]}]}}, default: %{}, doc: "Env var -> group list for forced activation."]
     ]
   }
 

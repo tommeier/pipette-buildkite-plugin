@@ -69,6 +69,7 @@ defmodule Pipette.Step do
     :if_condition,
     :matrix,
     :key,
+    :__identifier__,
     :__spark_metadata__
   ]
 
