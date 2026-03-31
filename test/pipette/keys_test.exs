@@ -144,6 +144,51 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
       assert packaging.depends_on == "api"
     end
 
+    test "resolves group depends_on using actual group key when group has explicit key" do
+      defmodule GroupDepsExplicitKeyPipeline do
+        use Pipette.DSL
+
+        group :native do
+          key("native-lint")
+          label("Native")
+          step(:lint, label: "Lint", command: "pnpm lint")
+        end
+
+        group :deploy do
+          label("Deploy")
+          depends_on(:native)
+          step(:push, label: "Push", command: "push.sh")
+        end
+      end
+
+      deploy =
+        Pipette.Info.groups(GroupDepsExplicitKeyPipeline) |> Enum.find(&(&1.name == :deploy))
+
+      # Should resolve to the ACTUAL key "native-lint", not "native"
+      assert deploy.depends_on == "native-lint"
+    end
+
+    test "resolves trigger depends_on using actual group key" do
+      defmodule TriggerDepsExplicitKeyPipeline do
+        use Pipette.DSL
+
+        group :backend do
+          key("backend-checks")
+          label("Backend")
+          step(:test, label: "Test", command: "mix test")
+        end
+
+        trigger :deploy do
+          pipeline("deploy-pipeline")
+          depends_on(:backend)
+        end
+      end
+
+      [trigger] = Pipette.Info.triggers(TriggerDepsExplicitKeyPipeline)
+      # Should resolve to "backend-checks", not "backend"
+      assert trigger.depends_on == "backend-checks"
+    end
+
     test "resolves group depends_on list to key strings" do
       defmodule GroupDepsListPipeline do
         use Pipette.DSL
