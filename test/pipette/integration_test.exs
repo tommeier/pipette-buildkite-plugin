@@ -2,108 +2,64 @@ defmodule Pipette.IntegrationTest do
   use ExUnit.Case, async: true
 
   defmodule TestPipeline do
-    @behaviour Pipette.Pipeline
+    use Pipette.DSL
 
-    @impl true
-    def pipeline do
-      %Pipette.Pipeline{
-        branches: [
-          %Pipette.Branch{pattern: "main", scopes: :all, disable: [:targeting]},
-          %Pipette.Branch{pattern: "merge-queue/**", scopes: :all, disable: [:targeting]}
-        ],
-        scopes: [
-          %Pipette.Scope{name: :api_code, files: ["apps/api/**"]},
-          %Pipette.Scope{name: :web_code, files: ["apps/web/**"]},
-          %Pipette.Scope{name: :infra_code, files: ["infra/**"], exclude: ["**/*.md"]},
-          %Pipette.Scope{name: :scripts, files: ["**/*.sh"]},
-          %Pipette.Scope{
-            name: :root_config,
-            files: [".buildkite/**", "Justfile", ".mise.toml"],
-            activates: :all
-          }
-        ],
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            label: ":elixir: API",
-            scope: :api_code,
-            steps: [
-              %Pipette.Step{
-                name: :format,
-                label: "Format",
-                command: "mix format --check-formatted"
-              },
-              %Pipette.Step{name: :test, label: "Test", command: "mix test"}
-            ]
-          },
-          %Pipette.Group{
-            name: :web,
-            label: ":globe_with_meridians: Web",
-            scope: :web_code,
-            steps: [
-              %Pipette.Step{name: :lint, label: "Lint", command: "pnpm lint"},
-              %Pipette.Step{name: :test, label: "Test", command: "pnpm test"}
-            ]
-          },
-          %Pipette.Group{
-            name: :deploy,
-            label: ":rocket: Deploy",
-            depends_on: :web,
-            only: ["main", "merge-queue/**"],
-            steps: [
-              %Pipette.Step{
-                name: :pre_release,
-                label: "Pre-Release",
-                command: "./pre-release.sh"
-              },
-              %Pipette.Step{
-                name: :release,
-                label: "Release",
-                command: "./release.sh",
-                depends_on: :pre_release
-              }
-            ]
-          },
-          %Pipette.Group{
-            name: :infra,
-            label: ":terraform: Infra",
-            scope: :infra_code,
-            steps: [
-              %Pipette.Step{name: :validate, label: "Validate", command: "terraform validate"},
-              %Pipette.Step{name: :plan, label: "Plan", command: "terraform plan"}
-            ]
-          },
-          %Pipette.Group{
-            name: :lint,
-            label: ":bash: Lint",
-            scope: :scripts,
-            steps: [
-              %Pipette.Step{
-                name: :shellcheck,
-                label: "ShellCheck",
-                command: "shellcheck **/*.sh"
-              },
-              %Pipette.Step{name: :shfmt, label: "shfmt", command: "shfmt -d ."}
-            ]
-          }
-        ],
-        triggers: [
-          %Pipette.Trigger{
-            name: :deploy_api,
-            label: ":rocket: Deploy API",
-            pipeline: "my-deploy-pipeline",
-            depends_on: :api,
-            only: ["main"]
-          }
-        ],
-        ignore: ["docs/**", "*.md", "LICENSE*"],
-        force_activate: %{
-          "FORCE_DEPLOY" => [:web, :deploy]
-        },
-        env: %{MIX_ENV: "test", NODE_ENV: "test"},
-        secrets: ["DEPLOY_TOKEN"],
-        cache: [paths: ["deps/", "node_modules/"]]
-      }
+    branch "main", scopes: :all, disable: [:targeting]
+    branch "merge-queue/**", scopes: :all, disable: [:targeting]
+
+    scope :api_code, files: ["apps/api/**"]
+    scope :web_code, files: ["apps/web/**"]
+    scope :infra_code, files: ["infra/**"], exclude: ["**/*.md"]
+    scope :scripts, files: ["**/*.sh"]
+    scope :root_config, files: [".buildkite/**", "Justfile", ".mise.toml"], activates: :all
+
+    env %{MIX_ENV: "test", NODE_ENV: "test"}
+    secrets ["DEPLOY_TOKEN"]
+    cache paths: ["deps/", "node_modules/"]
+    ignore ["docs/**", "*.md", "LICENSE*"]
+    force_activate %{"FORCE_DEPLOY" => [:web, :deploy]}
+
+    group :api do
+      label ":elixir: API"
+      scope :api_code
+      step :format, label: "Format", command: "mix format --check-formatted"
+      step :test, label: "Test", command: "mix test"
+    end
+
+    group :web do
+      label ":globe_with_meridians: Web"
+      scope :web_code
+      step :lint, label: "Lint", command: "pnpm lint"
+      step :test, label: "Test", command: "pnpm test"
+    end
+
+    group :deploy do
+      label ":rocket: Deploy"
+      depends_on :web
+      only ["main", "merge-queue/**"]
+      step :pre_release, label: "Pre-Release", command: "./pre-release.sh"
+      step :release, label: "Release", command: "./release.sh", depends_on: :pre_release
+    end
+
+    group :infra do
+      label ":terraform: Infra"
+      scope :infra_code
+      step :validate, label: "Validate", command: "terraform validate"
+      step :plan, label: "Plan", command: "terraform plan"
+    end
+
+    group :lint do
+      label ":bash: Lint"
+      scope :scripts
+      step :shellcheck, label: "ShellCheck", command: "shellcheck **/*.sh"
+      step :shfmt, label: "shfmt", command: "shfmt -d ."
+    end
+
+    trigger :deploy_api do
+      label ":rocket: Deploy API"
+      pipeline "my-deploy-pipeline"
+      depends_on :api
+      only "main"
     end
   end
 

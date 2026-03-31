@@ -2,84 +2,57 @@ defmodule Pipette.RunTest do
   use ExUnit.Case
 
   defmodule TestPipeline do
-    @behaviour Pipette.Pipeline
+    use Pipette.DSL
 
-    @impl true
-    def pipeline do
-      %Pipette.Pipeline{
-        branches: [
-          %Pipette.Branch{pattern: "main", scopes: :all, disable: [:targeting]}
-        ],
-        scopes: [
-          %Pipette.Scope{name: :api_code, files: ["apps/api/**"]},
-          %Pipette.Scope{name: :web_code, files: ["apps/web/**"]}
-        ],
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            label: ":elixir: API",
-            scope: :api_code,
-            steps: [
-              %Pipette.Step{name: :test, label: "Test", command: "mix test"}
-            ]
-          },
-          %Pipette.Group{
-            name: :web,
-            label: ":globe: Web",
-            scope: :web_code,
-            steps: [
-              %Pipette.Step{name: :lint, label: "Lint", command: "pnpm lint"}
-            ]
-          }
-        ],
-        ignore: ["docs/**", "*.md"],
-        env: %{LANG: "C.UTF-8"},
-        secrets: ["API_TOKEN"]
-      }
+    branch "main", scopes: :all, disable: [:targeting]
+
+    scope :api_code, files: ["apps/api/**"]
+    scope :web_code, files: ["apps/web/**"]
+
+    ignore ["docs/**", "*.md"]
+    env %{LANG: "C.UTF-8"}
+    secrets ["API_TOKEN"]
+
+    group :api do
+      label ":elixir: API"
+      scope :api_code
+      step :test, label: "Test", command: "mix test"
+    end
+
+    group :web do
+      label ":globe: Web"
+      scope :web_code
+      step :lint, label: "Lint", command: "pnpm lint"
     end
   end
 
   defmodule ForceActivatePipeline do
-    @behaviour Pipette.Pipeline
+    use Pipette.DSL
 
-    @impl true
-    def pipeline do
-      %Pipette.Pipeline{
-        scopes: [
-          %Pipette.Scope{name: :api_code, files: ["apps/api/**"]},
-          %Pipette.Scope{name: :web_code, files: ["apps/web/**"]}
-        ],
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            label: ":elixir: API",
-            scope: :api_code,
-            steps: [
-              %Pipette.Step{name: :test, label: "Test", command: "mix test"}
-            ]
-          },
-          %Pipette.Group{
-            name: :web,
-            label: ":globe: Web",
-            scope: :web_code,
-            steps: [
-              %Pipette.Step{name: :build, label: "Build", command: "pnpm build"}
-            ]
-          },
-          %Pipette.Group{
-            name: :deploy,
-            label: ":rocket: Deploy",
-            depends_on: [:api, :web],
-            steps: [
-              %Pipette.Step{name: :push, label: "Push", command: "./deploy.sh"}
-            ]
-          }
-        ],
-        force_activate: %{
-          "FORCE_DEPLOY" => [:deploy],
-          "FORCE_ALL" => :all
-        }
-      }
+    scope :api_code, files: ["apps/api/**"]
+    scope :web_code, files: ["apps/web/**"]
+
+    force_activate %{
+      "FORCE_DEPLOY" => [:deploy],
+      "FORCE_ALL" => :all
+    }
+
+    group :api do
+      label ":elixir: API"
+      scope :api_code
+      step :test, label: "Test", command: "mix test"
+    end
+
+    group :web do
+      label ":globe: Web"
+      scope :web_code
+      step :build, label: "Build", command: "pnpm build"
+    end
+
+    group :deploy do
+      label ":rocket: Deploy"
+      depends_on [:api, :web]
+      step :push, label: "Push", command: "./deploy.sh"
     end
   end
 
