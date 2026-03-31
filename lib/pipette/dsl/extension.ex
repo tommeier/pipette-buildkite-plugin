@@ -69,7 +69,6 @@ defmodule Pipette.Dsl.Extension do
     describe: "A branch policy controlling activation behavior on matching branches.",
     target: Pipette.Branch,
     args: [:pattern],
-    identifier: :pattern,
     schema: [
       pattern: [type: :string, required: true, doc: "Branch name or glob pattern."],
       scopes: [

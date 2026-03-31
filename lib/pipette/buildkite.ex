@@ -110,6 +110,7 @@ defmodule Pipette.Buildkite do
     |> put_if("branches", step.branches)
     |> put_if("if", step.if_condition)
     |> put_if("matrix", step.matrix)
+    |> put_if("notify", step.notify)
   end
 
   defp serialize_trigger(trigger) do

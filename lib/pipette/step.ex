@@ -68,6 +68,7 @@ defmodule Pipette.Step do
     :branches,
     :if_condition,
     :matrix,
+    :notify,
     :key,
     :__identifier__,
     :__spark_metadata__
@@ -103,6 +104,7 @@ defmodule Pipette.Step do
           branches: String.t() | nil,
           if_condition: String.t() | nil,
           matrix: list() | map() | nil,
+          notify: [map()] | nil,
           key: String.t() | nil
         }
 end
