@@ -104,7 +104,7 @@ Or use the Buildkite plugin:
 ```yaml
 steps:
   - plugins:
-      - tommeier/pipette#v0.4.3:
+      - tommeier/pipette#v0.4.4:
           pipeline: .buildkite/pipeline.exs
 ```
 
