@@ -10,7 +10,11 @@ defmodule Pipette.Dsl.Extension do
     schema: [
       name: [type: :atom, required: true, doc: "Unique step identifier within the group."],
       label: [type: :string, doc: "Display label in Buildkite UI (supports emoji)."],
-      command: [type: {:or, [:string, {:list, :string}]}, required: true, doc: "Shell command(s) to execute."],
+      command: [
+        type: {:or, [:string, {:list, :string}]},
+        required: true,
+        doc: "Shell command(s) to execute."
+      ],
       timeout_in_minutes: [type: :pos_integer, doc: "Step timeout in minutes."],
       soft_fail: [type: :any, doc: "Soft fail config (`true`, or list of exit code rules)."],
       retry: [type: :map, doc: "Retry config."],
@@ -48,8 +52,14 @@ defmodule Pipette.Dsl.Extension do
       name: [type: :atom, required: true, doc: "Unique group identifier."],
       label: [type: :string, doc: "Display label in Buildkite UI."],
       scope: [type: :atom, doc: "Scope that activates this group."],
-      depends_on: [type: {:or, [:atom, {:list, :atom}]}, doc: "Group(s) that must complete first."],
-      only: [type: {:or, [:string, {:list, :string}]}, doc: "Branch pattern(s) restricting this group."],
+      depends_on: [
+        type: {:or, [:atom, {:list, :atom}]},
+        doc: "Group(s) that must complete first."
+      ],
+      only: [
+        type: {:or, [:string, {:list, :string}]},
+        doc: "Branch pattern(s) restricting this group."
+      ],
       key: [type: :string, doc: "Override auto-generated Buildkite key."]
     ]
   }
@@ -62,8 +72,15 @@ defmodule Pipette.Dsl.Extension do
     identifier: :pattern,
     schema: [
       pattern: [type: :string, required: true, doc: "Branch name or glob pattern."],
-      scopes: [type: {:or, [{:in, [:all]}, {:list, :atom}]}, doc: "`:all` activates every group, or a list of scope names."],
-      disable: [type: {:list, {:in, [:targeting]}}, default: [], doc: "Features to disable on this branch."]
+      scopes: [
+        type: {:or, [{:in, [:all]}, {:list, :atom}]},
+        doc: "`:all` activates every group, or a list of scope names."
+      ],
+      disable: [
+        type: {:list, {:in, [:targeting]}},
+        default: [],
+        doc: "Features to disable on this branch."
+      ]
     ]
   }
 
@@ -75,9 +92,16 @@ defmodule Pipette.Dsl.Extension do
     identifier: :name,
     schema: [
       name: [type: :atom, required: true, doc: "Unique scope identifier."],
-      files: [type: {:list, :string}, required: true, doc: "Glob patterns that trigger this scope."],
+      files: [
+        type: {:list, :string},
+        required: true,
+        doc: "Glob patterns that trigger this scope."
+      ],
       exclude: [type: {:list, :string}, default: [], doc: "Glob patterns to exclude."],
-      activates: [type: {:in, [:all]}, doc: "Set to `:all` to activate all groups when this scope fires."]
+      activates: [
+        type: {:in, [:all]},
+        doc: "Set to `:all` to activate all groups when this scope fires."
+      ]
     ]
   }
 
@@ -91,7 +115,10 @@ defmodule Pipette.Dsl.Extension do
       name: [type: :atom, required: true, doc: "Unique trigger identifier."],
       label: [type: :string, doc: "Display label in Buildkite UI."],
       pipeline: [type: :string, required: true, doc: "Downstream pipeline slug."],
-      depends_on: [type: {:or, [:atom, {:list, :atom}]}, doc: "Group(s) that must complete before triggering."],
+      depends_on: [
+        type: {:or, [:atom, {:list, :atom}]},
+        doc: "Group(s) that must complete before triggering."
+      ],
       only: [type: {:or, [:string, {:list, :string}]}, doc: "Branch restriction."],
       build: [type: :map, doc: "Build parameters for the triggered pipeline."],
       async: [type: :boolean, default: false, doc: "Fire and forget."],
@@ -109,7 +136,11 @@ defmodule Pipette.Dsl.Extension do
       secrets: [type: {:list, :string}, default: [], doc: "Pipeline-level secrets."],
       cache: [type: :keyword_list, doc: "Cache configuration."],
       ignore: [type: {:list, :string}, default: [], doc: "File patterns that never activate CI."],
-      force_activate: [type: {:map, :string, {:or, [{:list, :atom}, {:in, [:all]}]}}, default: %{}, doc: "Env var -> group list for forced activation."]
+      force_activate: [
+        type: {:map, :string, {:or, [{:list, :atom}, {:in, [:all]}]}},
+        default: %{},
+        doc: "Env var -> group list for forced activation."
+      ]
     ]
   }
 

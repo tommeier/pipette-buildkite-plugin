@@ -5,13 +5,15 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
     test "generates group keys from atom names" do
       defmodule GroupKeysPipeline do
         use Pipette.DSL
+
         group :api do
-          label "API"
-          step :test, label: "Test", command: "mix test"
+          label("API")
+          step(:test, label: "Test", command: "mix test")
         end
+
         group :web do
-          label "Web"
-          step :build, label: "Build", command: "pnpm build"
+          label("Web")
+          step(:build, label: "Build", command: "pnpm build")
         end
       end
 
@@ -26,10 +28,11 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
     test "generates step keys as group-step" do
       defmodule StepKeysPipeline do
         use Pipette.DSL
+
         group :api do
-          label "API"
-          step :test, label: "Test", command: "mix test"
-          step :format, label: "Format", command: "mix format"
+          label("API")
+          step(:test, label: "Test", command: "mix test")
+          step(:format, label: "Format", command: "mix format")
         end
       end
 
@@ -46,13 +49,15 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
     test "generates trigger keys from atom names" do
       defmodule TriggerKeysPipeline do
         use Pipette.DSL
+
         group :api do
-          label "API"
-          step :test, label: "Test", command: "mix test"
+          label("API")
+          step(:test, label: "Test", command: "mix test")
         end
+
         trigger :deploy_api do
-          pipeline "deploy-pipeline"
-          depends_on :api
+          pipeline("deploy-pipeline")
+          depends_on(:api)
         end
       end
 
@@ -65,10 +70,11 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
     test "resolves step depends_on atom to key string" do
       defmodule StepDepsAtomPipeline do
         use Pipette.DSL
+
         group :api do
-          label "API"
-          step :compile, label: "Compile", command: "mix compile"
-          step :test, label: "Test", command: "mix test", depends_on: :compile
+          label("API")
+          step(:compile, label: "Compile", command: "mix compile")
+          step(:test, label: "Test", command: "mix test", depends_on: :compile)
         end
       end
 
@@ -80,12 +86,13 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
     test "resolves step depends_on list to key strings" do
       defmodule StepDepsListPipeline do
         use Pipette.DSL
+
         group :deploy do
-          label "Deploy"
-          step :pre_release, label: "Pre", command: "pre.sh"
-          step :ios, label: "iOS", command: "ios.sh", depends_on: :pre_release
-          step :android, label: "Android", command: "android.sh", depends_on: :pre_release
-          step :post, label: "Post", command: "post.sh", depends_on: [:ios, :android]
+          label("Deploy")
+          step(:pre_release, label: "Pre", command: "pre.sh")
+          step(:ios, label: "iOS", command: "ios.sh", depends_on: :pre_release)
+          step(:android, label: "Android", command: "android.sh", depends_on: :pre_release)
+          step(:post, label: "Post", command: "post.sh", depends_on: [:ios, :android])
         end
       end
 
@@ -97,14 +104,16 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
     test "resolves cross-group step depends_on tuple" do
       defmodule CrossGroupDepsPipeline do
         use Pipette.DSL
+
         group :api do
-          label "API"
-          step :test, label: "Test", command: "mix test"
+          label("API")
+          step(:test, label: "Test", command: "mix test")
         end
+
         group :deploy do
-          label "Deploy"
-          depends_on :api
-          step :push, label: "Push", command: "push.sh", depends_on: {:api, :test}
+          label("Deploy")
+          depends_on(:api)
+          step(:push, label: "Push", command: "push.sh", depends_on: {:api, :test})
         end
       end
 
@@ -116,36 +125,43 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
     test "resolves group depends_on atom to key string" do
       defmodule GroupDepsAtomPipeline do
         use Pipette.DSL
+
         group :api do
-          label "API"
-          step :test, label: "Test", command: "mix test"
+          label("API")
+          step(:test, label: "Test", command: "mix test")
         end
+
         group :packaging do
-          label "Packaging"
-          depends_on :api
-          step :build, label: "Build", command: "docker build ."
+          label("Packaging")
+          depends_on(:api)
+          step(:build, label: "Build", command: "docker build .")
         end
       end
 
-      packaging = Pipette.Info.groups(GroupDepsAtomPipeline) |> Enum.find(&(&1.name == :packaging))
+      packaging =
+        Pipette.Info.groups(GroupDepsAtomPipeline) |> Enum.find(&(&1.name == :packaging))
+
       assert packaging.depends_on == "api"
     end
 
     test "resolves group depends_on list to key strings" do
       defmodule GroupDepsListPipeline do
         use Pipette.DSL
+
         group :api do
-          label "API"
-          step :test, label: "Test", command: "mix test"
+          label("API")
+          step(:test, label: "Test", command: "mix test")
         end
+
         group :web do
-          label "Web"
-          step :build, label: "Build", command: "pnpm build"
+          label("Web")
+          step(:build, label: "Build", command: "pnpm build")
         end
+
         group :deploy do
-          label "Deploy"
-          depends_on [:api, :web]
-          step :push, label: "Push", command: "push.sh"
+          label("Deploy")
+          depends_on([:api, :web])
+          step(:push, label: "Push", command: "push.sh")
         end
       end
 
@@ -156,13 +172,15 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
     test "resolves trigger depends_on to key string" do
       defmodule TriggerDepsPipeline do
         use Pipette.DSL
+
         group :api do
-          label "API"
-          step :test, label: "Test", command: "mix test"
+          label("API")
+          step(:test, label: "Test", command: "mix test")
         end
+
         trigger :deploy do
-          pipeline "deploy-pipeline"
-          depends_on :api
+          pipeline("deploy-pipeline")
+          depends_on(:api)
         end
       end
 
@@ -173,9 +191,10 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
     test "preserves nil depends_on" do
       defmodule NilDepsPipeline do
         use Pipette.DSL
+
         group :api do
-          label "API"
-          step :test, label: "Test", command: "mix test"
+          label("API")
+          step(:test, label: "Test", command: "mix test")
         end
       end
 
@@ -188,9 +207,10 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
     test "passes through binary step depends_on unchanged" do
       defmodule BinaryDepsPipeline do
         use Pipette.DSL
+
         group :api do
-          label "API"
-          step :test, label: "Test", command: "mix test", depends_on: "already-resolved"
+          label("API")
+          step(:test, label: "Test", command: "mix test", depends_on: "already-resolved")
         end
       end
 

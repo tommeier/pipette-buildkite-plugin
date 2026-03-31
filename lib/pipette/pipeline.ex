@@ -47,5 +47,4 @@ defmodule Pipette.Pipeline do
           cache: keyword() | nil,
           force_activate: %{String.t() => [atom()] | :all}
         }
-
 end

@@ -6,38 +6,38 @@ defmodule Pipette.DslTest do
       defmodule FullPipeline do
         use Pipette.DSL
 
-        branch "main", scopes: :all, disable: [:targeting]
-        branch "release/*", scopes: [:api]
+        branch("main", scopes: :all, disable: [:targeting])
+        branch("release/*", scopes: [:api])
 
-        scope :api_code, files: ["apps/api/**", "mix.exs"], exclude: ["**/*.md"]
-        scope :infra, files: ["infra/**"], activates: :all
+        scope(:api_code, files: ["apps/api/**", "mix.exs"], exclude: ["**/*.md"])
+        scope(:infra, files: ["infra/**"], activates: :all)
 
-        env %{MIX_ENV: "test"}
-        secrets ["API_TOKEN"]
-        ignore ["docs/**", "*.md"]
-        cache paths: ["deps/"]
-        force_activate %{"FORCE_DEPLOY" => [:deploy]}
+        env(%{MIX_ENV: "test"})
+        secrets(["API_TOKEN"])
+        ignore(["docs/**", "*.md"])
+        cache(paths: ["deps/"])
+        force_activate(%{"FORCE_DEPLOY" => [:deploy]})
 
         group :api do
-          label ":elixir: API"
-          scope :api_code
-          step :test, label: "Test", command: "mix test", timeout_in_minutes: 15
-          step :lint, label: "Lint", command: "mix credo"
+          label(":elixir: API")
+          scope(:api_code)
+          step(:test, label: "Test", command: "mix test", timeout_in_minutes: 15)
+          step(:lint, label: "Lint", command: "mix credo")
         end
 
         group :deploy do
-          label ":rocket: Deploy"
-          depends_on :api
-          only "main"
-          step :push, label: "Push", command: "./deploy.sh"
+          label(":rocket: Deploy")
+          depends_on(:api)
+          only("main")
+          step(:push, label: "Push", command: "./deploy.sh")
         end
 
         trigger :notify do
-          label ":bell: Notify"
-          pipeline "notify-pipeline"
-          depends_on :api
-          only "main"
-          async true
+          label(":bell: Notify")
+          pipeline("notify-pipeline")
+          depends_on(:api)
+          only("main")
+          async(true)
         end
       end
 
@@ -81,9 +81,15 @@ defmodule Pipette.DslTest do
         use Pipette.DSL
 
         group :app do
-          label "App"
-          step :test, label: "Test", command: "mix test", timeout_in_minutes: 15,
-            env: %{MIX_ENV: "test"}, retry: %{automatic: [%{exit_status: -1, limit: 2}]}
+          label("App")
+
+          step(:test,
+            label: "Test",
+            command: "mix test",
+            timeout_in_minutes: 15,
+            env: %{MIX_ENV: "test"},
+            retry: %{automatic: [%{exit_status: -1, limit: 2}]}
+          )
         end
       end
 
@@ -100,15 +106,15 @@ defmodule Pipette.DslTest do
         use Pipette.DSL
 
         group :app do
-          label "App"
+          label("App")
 
           step :build do
-            label ":docker: Build"
-            command "bash build.sh"
-            timeout_in_minutes 20
-            plugins [{"docker#v5.0", %{image: "elixir:1.17"}}]
-            agents %{queue: "deploy"}
-            secrets ["GCP_KEY"]
+            label(":docker: Build")
+            command("bash build.sh")
+            timeout_in_minutes(20)
+            plugins([{"docker#v5.0", %{image: "elixir:1.17"}}])
+            agents(%{queue: "deploy"})
+            secrets(["GCP_KEY"])
           end
         end
       end
@@ -133,8 +139,8 @@ defmodule Pipette.DslTest do
         @shared_env %{LANG: "C.UTF-8"}
 
         group :app do
-          label "App"
-          step :test, label: "Test", command: "mix test", env: @shared_env
+          label("App")
+          step(:test, label: "Test", command: "mix test", env: @shared_env)
         end
       end
 
@@ -162,15 +168,15 @@ defmodule Pipette.DslTest do
       defmodule ToPipelineTest do
         use Pipette.DSL
 
-        env %{MIX_ENV: "test"}
-        ignore ["*.md"]
+        env(%{MIX_ENV: "test"})
+        ignore(["*.md"])
 
-        scope :code, files: ["lib/**"]
+        scope(:code, files: ["lib/**"])
 
         group :app do
-          label "App"
-          scope :code
-          step :test, label: "Test", command: "mix test"
+          label("App")
+          scope(:code)
+          step(:test, label: "Test", command: "mix test")
         end
       end
 

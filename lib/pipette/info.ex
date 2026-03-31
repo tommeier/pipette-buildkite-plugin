@@ -11,6 +11,7 @@ defmodule Pipette.Info do
   """
 
   @doc "Returns all `%Pipette.Branch{}` entities."
+  @spec branches(module()) :: [Pipette.Branch.t()]
   def branches(module) do
     module
     |> entities()
@@ -18,6 +19,7 @@ defmodule Pipette.Info do
   end
 
   @doc "Returns all `%Pipette.Scope{}` entities."
+  @spec scopes(module()) :: [Pipette.Scope.t()]
   def scopes(module) do
     module
     |> entities()
@@ -25,6 +27,7 @@ defmodule Pipette.Info do
   end
 
   @doc "Returns all `%Pipette.Group{}` entities."
+  @spec groups(module()) :: [Pipette.Group.t()]
   def groups(module) do
     module
     |> entities()
@@ -32,6 +35,7 @@ defmodule Pipette.Info do
   end
 
   @doc "Returns all `%Pipette.Trigger{}` entities."
+  @spec triggers(module()) :: [Pipette.Trigger.t()]
   def triggers(module) do
     module
     |> entities()
@@ -39,24 +43,30 @@ defmodule Pipette.Info do
   end
 
   @doc "Returns the pipeline-level `:env` map."
+  @spec env(module()) :: map()
   def env(module), do: get_opt(module, :env, %{})
 
   @doc "Returns the pipeline-level `:secrets` list."
+  @spec secrets(module()) :: [String.t()]
   def secrets(module), do: get_opt(module, :secrets, [])
 
   @doc "Returns the pipeline-level `:cache` config."
+  @spec cache(module()) :: keyword() | nil
   def cache(module), do: get_opt(module, :cache, nil)
 
   @doc "Returns the pipeline-level `:ignore` patterns."
+  @spec ignore(module()) :: [String.t()]
   def ignore(module), do: get_opt(module, :ignore, [])
 
   @doc "Returns the pipeline-level `:force_activate` map."
+  @spec force_activate(module()) :: map()
   def force_activate(module), do: get_opt(module, :force_activate, %{})
 
   @doc """
   Assembles a `%Pipette.Pipeline{}` struct from the Spark DSL data
   on the given module.
   """
+  @spec to_pipeline(module()) :: Pipette.Pipeline.t()
   def to_pipeline(module) do
     %Pipette.Pipeline{
       branches: branches(module),

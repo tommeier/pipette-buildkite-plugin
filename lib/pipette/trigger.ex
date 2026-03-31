@@ -34,7 +34,18 @@ defmodule Pipette.Trigger do
       }
   """
 
-  defstruct [:name, :label, :pipeline, :depends_on, :only, :build, :async, :key, :__identifier__, :__spark_metadata__]
+  defstruct [
+    :name,
+    :label,
+    :pipeline,
+    :depends_on,
+    :only,
+    :build,
+    :async,
+    :key,
+    :__identifier__,
+    :__spark_metadata__
+  ]
 
   @type t :: %__MODULE__{
           name: atom(),

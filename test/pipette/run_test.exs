@@ -4,55 +4,55 @@ defmodule Pipette.RunTest do
   defmodule TestPipeline do
     use Pipette.DSL
 
-    branch "main", scopes: :all, disable: [:targeting]
+    branch("main", scopes: :all, disable: [:targeting])
 
-    scope :api_code, files: ["apps/api/**"]
-    scope :web_code, files: ["apps/web/**"]
+    scope(:api_code, files: ["apps/api/**"])
+    scope(:web_code, files: ["apps/web/**"])
 
-    ignore ["docs/**", "*.md"]
-    env %{LANG: "C.UTF-8"}
-    secrets ["API_TOKEN"]
+    ignore(["docs/**", "*.md"])
+    env(%{LANG: "C.UTF-8"})
+    secrets(["API_TOKEN"])
 
     group :api do
-      label ":elixir: API"
-      scope :api_code
-      step :test, label: "Test", command: "mix test"
+      label(":elixir: API")
+      scope(:api_code)
+      step(:test, label: "Test", command: "mix test")
     end
 
     group :web do
-      label ":globe: Web"
-      scope :web_code
-      step :lint, label: "Lint", command: "pnpm lint"
+      label(":globe: Web")
+      scope(:web_code)
+      step(:lint, label: "Lint", command: "pnpm lint")
     end
   end
 
   defmodule ForceActivatePipeline do
     use Pipette.DSL
 
-    scope :api_code, files: ["apps/api/**"]
-    scope :web_code, files: ["apps/web/**"]
+    scope(:api_code, files: ["apps/api/**"])
+    scope(:web_code, files: ["apps/web/**"])
 
-    force_activate %{
+    force_activate(%{
       "FORCE_DEPLOY" => [:deploy],
       "FORCE_ALL" => :all
-    }
+    })
 
     group :api do
-      label ":elixir: API"
-      scope :api_code
-      step :test, label: "Test", command: "mix test"
+      label(":elixir: API")
+      scope(:api_code)
+      step(:test, label: "Test", command: "mix test")
     end
 
     group :web do
-      label ":globe: Web"
-      scope :web_code
-      step :build, label: "Build", command: "pnpm build"
+      label(":globe: Web")
+      scope(:web_code)
+      step(:build, label: "Build", command: "pnpm build")
     end
 
     group :deploy do
-      label ":rocket: Deploy"
-      depends_on [:api, :web]
-      step :push, label: "Push", command: "./deploy.sh"
+      label(":rocket: Deploy")
+      depends_on([:api, :web])
+      step(:push, label: "Push", command: "./deploy.sh")
     end
   end
 

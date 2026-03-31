@@ -177,9 +177,13 @@ defmodule Pipette do
     else
       pipeline_config =
         %{}
-        |> then(fn m -> if pipeline.env not in [nil, %{}], do: Map.put(m, :env, pipeline.env), else: m end)
         |> then(fn m ->
-          if pipeline.secrets not in [nil, []], do: Map.put(m, :secrets, pipeline.secrets), else: m
+          if pipeline.env not in [nil, %{}], do: Map.put(m, :env, pipeline.env), else: m
+        end)
+        |> then(fn m ->
+          if pipeline.secrets not in [nil, []],
+            do: Map.put(m, :secrets, pipeline.secrets),
+            else: m
         end)
         |> then(fn m -> if pipeline.cache, do: Map.put(m, :cache, pipeline.cache), else: m end)
 
