@@ -59,7 +59,7 @@ defmodule Pipette.DslTest do
       assert length(api_group.steps) == 2
 
       deploy_group = Enum.find(groups, &(&1.name == :deploy))
-      assert deploy_group.depends_on == :api
+      assert deploy_group.depends_on == "api"
       assert deploy_group.only == "main"
 
       triggers = Pipette.Info.triggers(FullPipeline)

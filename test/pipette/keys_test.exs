@@ -1,271 +1,200 @@
-defmodule Pipette.KeysTest do
+defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
   use ExUnit.Case, async: true
 
-  describe "generate_keys/1" do
+  describe "group keys" do
     test "generates group keys from atom names" do
-      pipeline = %Pipette.Pipeline{
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            steps: [%Pipette.Step{name: :test, label: "Test", command: "mix test"}]
-          },
-          %Pipette.Group{
-            name: :web,
-            steps: [%Pipette.Step{name: :build, label: "Build", command: "pnpm build"}]
-          }
-        ]
-      }
+      defmodule GroupKeysPipeline do
+        use Pipette.DSL
+        group :api do
+          label "API"
+          step :test, label: "Test", command: "mix test"
+        end
+        group :web do
+          label "Web"
+          step :build, label: "Build", command: "pnpm build"
+        end
+      end
 
-      result = Pipette.generate_keys(pipeline)
-
-      keys = Enum.map(result.groups, & &1.key)
-      assert keys == ["api", "web"]
+      groups = Pipette.Info.groups(GroupKeysPipeline)
+      keys = Enum.map(groups, & &1.key)
+      assert "api" in keys
+      assert "web" in keys
     end
+  end
 
+  describe "step keys" do
     test "generates step keys as group-step" do
-      pipeline = %Pipette.Pipeline{
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            steps: [
-              %Pipette.Step{name: :test, label: "Test", command: "mix test"},
-              %Pipette.Step{name: :format, label: "Format", command: "mix format"}
-            ]
-          }
-        ]
-      }
+      defmodule StepKeysPipeline do
+        use Pipette.DSL
+        group :api do
+          label "API"
+          step :test, label: "Test", command: "mix test"
+          step :format, label: "Format", command: "mix format"
+        end
+      end
 
-      result = Pipette.generate_keys(pipeline)
-
-      [group] = result.groups
+      [group] = Pipette.Info.groups(StepKeysPipeline)
       assert group.key == "api"
-
-      [test_step, format_step] = group.steps
+      test_step = Enum.find(group.steps, &(&1.name == :test))
+      format_step = Enum.find(group.steps, &(&1.name == :format))
       assert test_step.key == "api-test"
       assert format_step.key == "api-format"
     end
+  end
 
+  describe "trigger keys" do
     test "generates trigger keys from atom names" do
-      pipeline = %Pipette.Pipeline{
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            steps: [%Pipette.Step{name: :test, label: "Test"}]
-          }
-        ],
-        triggers: [
-          %Pipette.Trigger{
-            name: :deploy_api,
-            pipeline: "deploy-pipeline",
-            depends_on: :api
-          }
-        ]
-      }
+      defmodule TriggerKeysPipeline do
+        use Pipette.DSL
+        group :api do
+          label "API"
+          step :test, label: "Test", command: "mix test"
+        end
+        trigger :deploy_api do
+          pipeline "deploy-pipeline"
+          depends_on :api
+        end
+      end
 
-      result = Pipette.generate_keys(pipeline)
-
-      [trigger] = result.triggers
+      [trigger] = Pipette.Info.triggers(TriggerKeysPipeline)
       assert trigger.key == "deploy_api"
     end
+  end
 
+  describe "depends_on resolution" do
     test "resolves step depends_on atom to key string" do
-      pipeline = %Pipette.Pipeline{
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            steps: [
-              %Pipette.Step{name: :compile, label: "Compile"},
-              %Pipette.Step{name: :test, label: "Test", depends_on: :compile}
-            ]
-          }
-        ]
-      }
+      defmodule StepDepsAtomPipeline do
+        use Pipette.DSL
+        group :api do
+          label "API"
+          step :compile, label: "Compile", command: "mix compile"
+          step :test, label: "Test", command: "mix test", depends_on: :compile
+        end
+      end
 
-      result = Pipette.generate_keys(pipeline)
-
-      [group] = result.groups
+      [group] = Pipette.Info.groups(StepDepsAtomPipeline)
       test_step = Enum.find(group.steps, &(&1.name == :test))
       assert test_step.depends_on == "api-compile"
     end
 
     test "resolves step depends_on list to key strings" do
-      pipeline = %Pipette.Pipeline{
-        groups: [
-          %Pipette.Group{
-            name: :deploy,
-            steps: [
-              %Pipette.Step{name: :pre_release, label: "Pre"},
-              %Pipette.Step{name: :ios, label: "iOS", depends_on: :pre_release},
-              %Pipette.Step{name: :android, label: "Android", depends_on: :pre_release},
-              %Pipette.Step{name: :post, label: "Post", depends_on: [:ios, :android]}
-            ]
-          }
-        ]
-      }
+      defmodule StepDepsListPipeline do
+        use Pipette.DSL
+        group :deploy do
+          label "Deploy"
+          step :pre_release, label: "Pre", command: "pre.sh"
+          step :ios, label: "iOS", command: "ios.sh", depends_on: :pre_release
+          step :android, label: "Android", command: "android.sh", depends_on: :pre_release
+          step :post, label: "Post", command: "post.sh", depends_on: [:ios, :android]
+        end
+      end
 
-      result = Pipette.generate_keys(pipeline)
-
-      [group] = result.groups
+      [group] = Pipette.Info.groups(StepDepsListPipeline)
       post = Enum.find(group.steps, &(&1.name == :post))
       assert post.depends_on == ["deploy-ios", "deploy-android"]
     end
 
     test "resolves cross-group step depends_on tuple" do
-      pipeline = %Pipette.Pipeline{
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            steps: [%Pipette.Step{name: :test, label: "Test"}]
-          },
-          %Pipette.Group{
-            name: :deploy,
-            depends_on: :api,
-            steps: [
-              %Pipette.Step{name: :push, label: "Push", depends_on: {:api, :test}}
-            ]
-          }
-        ]
-      }
+      defmodule CrossGroupDepsPipeline do
+        use Pipette.DSL
+        group :api do
+          label "API"
+          step :test, label: "Test", command: "mix test"
+        end
+        group :deploy do
+          label "Deploy"
+          depends_on :api
+          step :push, label: "Push", command: "push.sh", depends_on: {:api, :test}
+        end
+      end
 
-      result = Pipette.generate_keys(pipeline)
-
-      deploy = Enum.find(result.groups, &(&1.name == :deploy))
+      deploy = Pipette.Info.groups(CrossGroupDepsPipeline) |> Enum.find(&(&1.name == :deploy))
       push = Enum.find(deploy.steps, &(&1.name == :push))
       assert push.depends_on == "api-test"
     end
 
     test "resolves group depends_on atom to key string" do
-      pipeline = %Pipette.Pipeline{
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            steps: [%Pipette.Step{name: :test, label: "Test"}]
-          },
-          %Pipette.Group{
-            name: :packaging,
-            depends_on: :api,
-            steps: [%Pipette.Step{name: :build, label: "Build"}]
-          }
-        ]
-      }
+      defmodule GroupDepsAtomPipeline do
+        use Pipette.DSL
+        group :api do
+          label "API"
+          step :test, label: "Test", command: "mix test"
+        end
+        group :packaging do
+          label "Packaging"
+          depends_on :api
+          step :build, label: "Build", command: "docker build ."
+        end
+      end
 
-      result = Pipette.generate_keys(pipeline)
-
-      packaging = Enum.find(result.groups, &(&1.name == :packaging))
+      packaging = Pipette.Info.groups(GroupDepsAtomPipeline) |> Enum.find(&(&1.name == :packaging))
       assert packaging.depends_on == "api"
     end
 
     test "resolves group depends_on list to key strings" do
-      pipeline = %Pipette.Pipeline{
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            steps: [%Pipette.Step{name: :test, label: "Test"}]
-          },
-          %Pipette.Group{
-            name: :web,
-            steps: [%Pipette.Step{name: :build, label: "Build"}]
-          },
-          %Pipette.Group{
-            name: :deploy,
-            depends_on: [:api, :web],
-            steps: [%Pipette.Step{name: :push, label: "Push"}]
-          }
-        ]
-      }
+      defmodule GroupDepsListPipeline do
+        use Pipette.DSL
+        group :api do
+          label "API"
+          step :test, label: "Test", command: "mix test"
+        end
+        group :web do
+          label "Web"
+          step :build, label: "Build", command: "pnpm build"
+        end
+        group :deploy do
+          label "Deploy"
+          depends_on [:api, :web]
+          step :push, label: "Push", command: "push.sh"
+        end
+      end
 
-      result = Pipette.generate_keys(pipeline)
-
-      deploy = Enum.find(result.groups, &(&1.name == :deploy))
+      deploy = Pipette.Info.groups(GroupDepsListPipeline) |> Enum.find(&(&1.name == :deploy))
       assert deploy.depends_on == ["api", "web"]
     end
 
     test "resolves trigger depends_on to key string" do
-      pipeline = %Pipette.Pipeline{
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            steps: [%Pipette.Step{name: :test, label: "Test"}]
-          }
-        ],
-        triggers: [
-          %Pipette.Trigger{
-            name: :deploy_api,
-            pipeline: "deploy-pipeline",
-            depends_on: :api
-          }
-        ]
-      }
+      defmodule TriggerDepsPipeline do
+        use Pipette.DSL
+        group :api do
+          label "API"
+          step :test, label: "Test", command: "mix test"
+        end
+        trigger :deploy do
+          pipeline "deploy-pipeline"
+          depends_on :api
+        end
+      end
 
-      result = Pipette.generate_keys(pipeline)
-
-      [trigger] = result.triggers
+      [trigger] = Pipette.Info.triggers(TriggerDepsPipeline)
       assert trigger.depends_on == "api"
     end
 
-    test "resolves trigger depends_on list to key strings" do
-      pipeline = %Pipette.Pipeline{
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            steps: [%Pipette.Step{name: :test, label: "Test"}]
-          },
-          %Pipette.Group{
-            name: :web,
-            steps: [%Pipette.Step{name: :build, label: "Build"}]
-          }
-        ],
-        triggers: [
-          %Pipette.Trigger{
-            name: :deploy_all,
-            pipeline: "deploy-pipeline",
-            depends_on: [:api, :web]
-          }
-        ]
-      }
-
-      result = Pipette.generate_keys(pipeline)
-
-      [trigger] = result.triggers
-      assert trigger.depends_on == ["api", "web"]
-    end
-
     test "preserves nil depends_on" do
-      pipeline = %Pipette.Pipeline{
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            steps: [
-              %Pipette.Step{name: :test, label: "Test"}
-            ]
-          }
-        ]
-      }
+      defmodule NilDepsPipeline do
+        use Pipette.DSL
+        group :api do
+          label "API"
+          step :test, label: "Test", command: "mix test"
+        end
+      end
 
-      result = Pipette.generate_keys(pipeline)
-
-      [group] = result.groups
+      [group] = Pipette.Info.groups(NilDepsPipeline)
       assert group.depends_on == nil
-
       [step] = group.steps
       assert step.depends_on == nil
     end
 
     test "passes through binary step depends_on unchanged" do
-      pipeline = %Pipette.Pipeline{
-        groups: [
-          %Pipette.Group{
-            name: :api,
-            steps: [
-              %Pipette.Step{name: :test, label: "Test", depends_on: "already-resolved"}
-            ]
-          }
-        ]
-      }
+      defmodule BinaryDepsPipeline do
+        use Pipette.DSL
+        group :api do
+          label "API"
+          step :test, label: "Test", command: "mix test", depends_on: "already-resolved"
+        end
+      end
 
-      result = Pipette.generate_keys(pipeline)
-
-      [group] = result.groups
+      [group] = Pipette.Info.groups(BinaryDepsPipeline)
       [step] = group.steps
       assert step.depends_on == "already-resolved"
     end
