@@ -188,6 +188,30 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
       assert trigger.depends_on == "api"
     end
 
+    test "resolves step depends_on using actual step key when step has explicit key" do
+      defmodule ExplicitKeyDepsPipeline do
+        use Pipette.DSL
+
+        group :backend do
+          key("backend-checks")
+          label("Backend")
+          step(:test, key: "backend-test", label: "Test", command: "mix test")
+
+          step(:junit,
+            label: "JUnit",
+            depends_on: :test,
+            allow_dependency_failure: true,
+            plugins: [{"junit-annotate#v2.7.0", %{}}]
+          )
+        end
+      end
+
+      [group] = Pipette.Info.groups(ExplicitKeyDepsPipeline)
+      junit = Enum.find(group.steps, &(&1.name == :junit))
+      # Should resolve to the ACTUAL key "backend-test", not "backend-checks-test"
+      assert junit.depends_on == "backend-test"
+    end
+
     test "preserves nil depends_on" do
       defmodule NilDepsPipeline do
         use Pipette.DSL
