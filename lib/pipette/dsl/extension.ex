@@ -68,8 +68,11 @@ defmodule Pipette.Dsl.Extension do
     describe: "A branch policy controlling activation behavior on matching branches.",
     target: Pipette.Branch,
     args: [:pattern],
+    identifier: :pattern,
+    transform: {__MODULE__, :set_branch_name, []},
     schema: [
       pattern: [type: :string, required: true, doc: "Branch name or glob pattern."],
+      name: [type: :string, doc: false, hide: [:docs]],
       scopes: [
         type: {:or, [{:in, [:all]}, {:list, :atom}]},
         doc: "`:all` activates every group, or a list of scope names."
@@ -123,6 +126,11 @@ defmodule Pipette.Dsl.Extension do
       key: [type: :string, doc: "Override auto-generated Buildkite key."]
     ]
   }
+
+  @doc false
+  def set_branch_name(%Pipette.Branch{pattern: pattern} = branch) do
+    {:ok, %{branch | name: pattern}}
+  end
 
   @pipeline_section %Spark.Dsl.Section{
     name: :pipeline,

@@ -31,7 +31,7 @@ defmodule Pipette.Branch do
       }
   """
 
-  defstruct [:pattern, :scopes, :disable, :__identifier__, :__spark_metadata__]
+  defstruct [:pattern, :scopes, :disable, :name, :__identifier__, :__spark_metadata__]
 
   @type t :: %__MODULE__{
           pattern: String.t(),
