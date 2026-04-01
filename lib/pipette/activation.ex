@@ -217,13 +217,13 @@ defmodule Pipette.Activation do
   end
 
   defp depends_on_active?(%{depends_on: dep}, active) when is_binary(dep) do
-    String.to_existing_atom(dep) in active
+    String.to_atom(dep) in active
   end
 
   defp depends_on_active?(%{depends_on: deps}, active) when is_list(deps) do
     Enum.any?(deps, fn
       dep when is_atom(dep) -> dep in active
-      dep when is_binary(dep) -> String.to_existing_atom(dep) in active
+      dep when is_binary(dep) -> String.to_atom(dep) in active
     end)
   end
 
@@ -262,12 +262,12 @@ defmodule Pipette.Activation do
 
   defp normalize_deps(nil), do: []
   defp normalize_deps(dep) when is_atom(dep), do: [dep]
-  defp normalize_deps(dep) when is_binary(dep), do: [String.to_existing_atom(dep)]
+  defp normalize_deps(dep) when is_binary(dep), do: [String.to_atom(dep)]
 
   defp normalize_deps(deps) when is_list(deps) do
     Enum.map(deps, fn
       dep when is_atom(dep) -> dep
-      dep when is_binary(dep) -> String.to_existing_atom(dep)
+      dep when is_binary(dep) -> String.to_atom(dep)
     end)
   end
 
@@ -345,7 +345,7 @@ defmodule Pipette.Activation do
 
   defp step_depends_on_names(dep) when is_binary(dep) do
     case String.split(dep, "-", parts: 2) do
-      [_group, step] -> [String.to_existing_atom(step)]
+      [_group, step] -> [String.to_atom(step)]
       _ -> []
     end
   end

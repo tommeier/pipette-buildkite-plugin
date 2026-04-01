@@ -304,7 +304,7 @@ defmodule Pipette do
   defp trigger_deps_met?(dep, active) when is_atom(dep), do: dep in active
 
   defp trigger_deps_met?(dep, active) when is_binary(dep),
-    do: String.to_existing_atom(dep) in active
+    do: String.to_atom(dep) in active
 
   defp trigger_deps_met?(deps, active) when is_list(deps),
     do: Enum.all?(deps, &trigger_deps_met?(&1, active))

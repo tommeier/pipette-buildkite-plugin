@@ -105,13 +105,13 @@ defmodule Pipette.Graph do
   end
 
   defp add_group_deps(graph, %{name: name, depends_on: dep}) when is_binary(dep) do
-    add_edge(graph, name, String.to_existing_atom(dep))
+    add_edge(graph, name, String.to_atom(dep))
   end
 
   defp add_group_deps(graph, %{name: name, depends_on: deps}) when is_list(deps) do
     Enum.reduce(deps, graph, fn
       dep, g when is_atom(dep) -> add_edge(g, name, dep)
-      dep, g when is_binary(dep) -> add_edge(g, name, String.to_existing_atom(dep))
+      dep, g when is_binary(dep) -> add_edge(g, name, String.to_atom(dep))
     end)
   end
 

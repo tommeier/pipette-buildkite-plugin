@@ -288,4 +288,54 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
       assert step.depends_on == "already-resolved"
     end
   end
+
+  describe "end-to-end YAML output" do
+    test "depends_on resolves to actual group keys in generated YAML" do
+      defmodule YamlKeysPipeline do
+        use Pipette.DSL
+
+        scope(:code, files: ["lib/**"])
+
+        group :checks do
+          key("lint-checks")
+          label("Checks")
+          scope(:code)
+          step(:lint, label: "Lint", command: "mix credo")
+        end
+
+        group :deploy do
+          label("Deploy")
+          depends_on(:checks)
+          only("main")
+          step(:push, label: "Push", command: "push.sh")
+        end
+
+        trigger :notify do
+          pipeline("notify-pipeline")
+          depends_on(:checks)
+          only("main")
+        end
+      end
+
+      {:ok, yaml} =
+        Pipette.generate(YamlKeysPipeline,
+          env: %{
+            "BUILDKITE_BRANCH" => "main",
+            "BUILDKITE_PIPELINE_DEFAULT_BRANCH" => "main",
+            "BUILDKITE_COMMIT" => "abc",
+            "BUILDKITE_MESSAGE" => "Test"
+          },
+          changed_files: ["lib/foo.ex"]
+        )
+
+      # Group depends_on should use the ACTUAL key "lint-checks", not "checks"
+      assert yaml =~ "lint-checks"
+      # Step key should use the actual group key prefix
+      assert yaml =~ "lint-checks-lint"
+      # Deploy group should appear (depends_on resolved correctly)
+      assert yaml =~ "Deploy"
+      # Trigger should appear (depends_on resolved correctly on main)
+      assert yaml =~ "notify-pipeline"
+    end
+  end
 end
