@@ -300,6 +300,22 @@ Setting `FORCE_DEPLOY=true` on a Buildkite build activates `:api`, `:web`, and `
 
 ## Pipeline Script
 
+For smaller pipelines, put everything in one file:
+
+```elixir
+# .buildkite/pipeline.exs
+Mix.install([{:buildkite_pipette, "~> 0.4"}])
+
+defmodule Acme.Pipeline do
+  use Pipette.DSL
+  # ... pipeline definition ...
+end
+
+Pipette.run(Acme.Pipeline)
+```
+
+For larger pipelines (or when the module is part of a Mix project), use `Code.require_file`:
+
 ```elixir
 # .buildkite/pipeline.exs
 Mix.install([{:buildkite_pipette, "~> 0.4"}])

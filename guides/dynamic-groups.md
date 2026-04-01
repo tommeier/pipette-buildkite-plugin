@@ -110,6 +110,27 @@ extra_groups: fn _ctx, changed_files ->
 end
 ```
 
+## Using Pipette.Constructors
+
+If your dynamic group logic lives in a **separate module** (not the DSL module), you can
+`import Pipette.Constructors` for cleaner syntax instead of raw structs:
+
+```elixir
+defmodule MyApp.PackageDiscovery do
+  import Pipette.Constructors, only: [step: 2, group: 2]
+
+  def discover(_ctx, _changed_files) do
+    [group(:extra, label: "Extra", key: "extra", steps: [
+      step(:check, label: "Check", command: "echo ok", key: "extra-check")
+    ])]
+  end
+end
+```
+
+> **Note:** You cannot import `Pipette.Constructors` in the same module that `use`s
+> `Pipette.DSL` — the `step/2` and `group/2` names conflict with Spark's DSL macros.
+> Use raw structs or a separate module.
+
 ## Important Notes
 
 - **Keys must be unique**: Dynamic group and step keys must not collide with static pipeline groups. Use the package name as a prefix.
