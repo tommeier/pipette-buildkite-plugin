@@ -141,10 +141,11 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
       packaging =
         Pipette.Info.groups(GroupDepsAtomPipeline) |> Enum.find(&(&1.name == :packaging))
 
-      assert packaging.depends_on == "api"
+      # Group depends_on stays as atoms (activation engine uses atoms)
+      assert packaging.depends_on == :api
     end
 
-    test "resolves group depends_on using actual group key when group has explicit key" do
+    test "preserves group depends_on as atoms even with explicit keys" do
       defmodule GroupDepsExplicitKeyPipeline do
         use Pipette.DSL
 
@@ -164,11 +165,11 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
       deploy =
         Pipette.Info.groups(GroupDepsExplicitKeyPipeline) |> Enum.find(&(&1.name == :deploy))
 
-      # Should resolve to the ACTUAL key "native-lint", not "native"
-      assert deploy.depends_on == "native-lint"
+      # Stays as atom — Pipette.run/2 resolves to key strings before YAML output
+      assert deploy.depends_on == :native
     end
 
-    test "resolves trigger depends_on using actual group key" do
+    test "preserves trigger depends_on as atoms" do
       defmodule TriggerDepsExplicitKeyPipeline do
         use Pipette.DSL
 
@@ -185,11 +186,10 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
       end
 
       [trigger] = Pipette.Info.triggers(TriggerDepsExplicitKeyPipeline)
-      # Should resolve to "backend-checks", not "backend"
-      assert trigger.depends_on == "backend-checks"
+      assert trigger.depends_on == :backend
     end
 
-    test "resolves group depends_on list to key strings" do
+    test "preserves group depends_on list as atoms" do
       defmodule GroupDepsListPipeline do
         use Pipette.DSL
 
@@ -211,10 +211,10 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
       end
 
       deploy = Pipette.Info.groups(GroupDepsListPipeline) |> Enum.find(&(&1.name == :deploy))
-      assert deploy.depends_on == ["api", "web"]
+      assert deploy.depends_on == [:api, :web]
     end
 
-    test "resolves trigger depends_on to key string" do
+    test "preserves trigger depends_on as atom" do
       defmodule TriggerDepsPipeline do
         use Pipette.DSL
 
@@ -230,7 +230,7 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
       end
 
       [trigger] = Pipette.Info.triggers(TriggerDepsPipeline)
-      assert trigger.depends_on == "api"
+      assert trigger.depends_on == :api
     end
 
     test "resolves step depends_on using actual step key when step has explicit key" do

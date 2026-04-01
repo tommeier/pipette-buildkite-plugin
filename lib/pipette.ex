@@ -171,6 +171,20 @@ defmodule Pipette do
 
     all_groups = result.groups ++ extra_groups
 
+    # Resolve group/trigger depends_on atoms to key strings for Buildkite YAML.
+    # The activation engine uses atom names internally; Buildkite needs key strings.
+    group_key_map = Map.new(pipeline.groups ++ extra_groups, &{&1.name, &1.key})
+
+    all_groups =
+      Enum.map(all_groups, fn group ->
+        %{group | depends_on: resolve_depends_on_keys(group.depends_on, group_key_map)}
+      end)
+
+    triggers =
+      Enum.map(triggers, fn trigger ->
+        %{trigger | depends_on: resolve_depends_on_keys(trigger.depends_on, group_key_map)}
+      end)
+
     if all_groups == [] and triggers == [] do
       Logger.info("No groups activated -- nothing to do")
       :noop
@@ -201,6 +215,15 @@ defmodule Pipette do
       end
     end
   end
+
+  defp resolve_depends_on_keys(nil, _map), do: nil
+  defp resolve_depends_on_keys(dep, _map) when is_binary(dep), do: dep
+
+  defp resolve_depends_on_keys(dep, map) when is_atom(dep),
+    do: Map.get(map, dep, Atom.to_string(dep))
+
+  defp resolve_depends_on_keys(deps, map) when is_list(deps),
+    do: Enum.map(deps, &resolve_depends_on_keys(&1, map))
 
   @doc """
   Generate pipeline YAML without uploading. Convenience wrapper around `run/2`
