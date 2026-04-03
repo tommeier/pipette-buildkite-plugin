@@ -38,9 +38,23 @@ defmodule Pipette.Dsl.Transformers.GenerateKeys do
             %{step | depends_on: resolved_deps}
           end)
 
+        # Flatten nested scope ref into top-level group fields for the activation engine.
+        {scope, ignore_global_scope} =
+          case group.scope_refs do
+            [%Pipette.ScopeRef{name: name, ignore_global: ig}] -> {name, ig}
+            _ -> {group.scope, group.ignore_global_scope}
+          end
+
         # Group depends_on stays as atoms — the activation engine needs atom names.
         # The Buildkite serializer resolves to key strings at YAML output time.
-        updated = %{group | key: group_key, steps: steps}
+        updated = %{
+          group
+          | key: group_key,
+            steps: steps,
+            scope: scope,
+            ignore_global_scope: ignore_global_scope
+        }
+
         Spark.Dsl.Transformer.replace_entity(dsl, [:pipeline], updated)
       end)
 

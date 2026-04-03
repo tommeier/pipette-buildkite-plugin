@@ -123,7 +123,15 @@ defmodule Pipette.Activation do
   defp determine_active_groups(policy, ctx, scopes, groups, changed_files, ignore) do
     cond do
       policy != nil and policy.scopes == :all ->
-        {groups, nil}
+        {global_groups, excluded_groups} =
+          Enum.split_with(groups, fn group -> !group.ignore_global_scope end)
+
+        if excluded_groups == [] do
+          {groups, nil}
+        else
+          file_activated = activate_from_changes(scopes, excluded_groups, changed_files, ignore)
+          {global_groups ++ file_activated, nil}
+        end
 
       policy != nil and is_list(policy.scopes) ->
         fired = MapSet.new(policy.scopes)
