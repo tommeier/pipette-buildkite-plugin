@@ -40,17 +40,33 @@ defmodule Pipette.Dsl.Extension do
     ]
   }
 
+  @scope_ref %Spark.Dsl.Entity{
+    name: :scope,
+    describe: "Binds this group to a named scope for activation control.",
+    target: Pipette.ScopeRef,
+    args: [:name],
+    identifier: :name,
+    schema: [
+      name: [type: :atom, required: true, doc: "Scope name to bind to."],
+      ignore_global: [
+        type: :boolean,
+        default: false,
+        doc:
+          "When true, this group is excluded from `scopes: :all` branch policy activation and falls back to file-based scope detection."
+      ]
+    ]
+  }
+
   @group %Spark.Dsl.Entity{
     name: :group,
     describe: "A group of related CI steps that share activation scope.",
     target: Pipette.Group,
     args: [:name],
     identifier: :name,
-    entities: [steps: [@step]],
+    entities: [steps: [@step], scope_refs: [@scope_ref]],
     schema: [
       name: [type: :atom, required: true, doc: "Unique group identifier."],
       label: [type: :string, doc: "Display label in Buildkite UI."],
-      scope: [type: :atom, doc: "Scope that activates this group."],
       depends_on: [
         type: {:or, [:atom, {:list, :atom}]},
         doc: "Group(s) that must complete first."

@@ -163,6 +163,60 @@ defmodule Pipette.DslTest do
     end
   end
 
+  describe "scope with ignore_global" do
+    test "scope/1 sets scope without ignore_global_scope" do
+      defmodule ScopeSimplePipeline do
+        use Pipette.DSL
+
+        scope(:code, files: ["lib/**"])
+
+        group :app do
+          label("App")
+          scope(:code)
+          step(:test, label: "Test", command: "mix test")
+        end
+      end
+
+      [group] = Pipette.Info.groups(ScopeSimplePipeline)
+      assert group.scope == :code
+      assert group.ignore_global_scope == false
+    end
+
+    test "scope/2 with ignore_global: true sets ignore_global_scope" do
+      defmodule ScopeIgnoreGlobalPipeline do
+        use Pipette.DSL
+
+        scope(:web_code, files: ["apps/web/**"])
+
+        group :deploy do
+          label(":rocket: Deploy")
+          scope(:web_code, ignore_global: true)
+          only("main")
+          step(:release, label: "Release", command: "./deploy.sh")
+        end
+      end
+
+      [group] = Pipette.Info.groups(ScopeIgnoreGlobalPipeline)
+      assert group.scope == :web_code
+      assert group.ignore_global_scope == true
+    end
+
+    test "group without scope has nil scope and false ignore_global_scope" do
+      defmodule NoScopePipeline do
+        use Pipette.DSL
+
+        group :misc do
+          label("Misc")
+          step(:check, label: "Check", command: "echo ok")
+        end
+      end
+
+      [group] = Pipette.Info.groups(NoScopePipeline)
+      assert group.scope == nil
+      assert group.ignore_global_scope == false
+    end
+  end
+
   describe "to_pipeline/1" do
     test "assembles a Pipeline struct from Spark data" do
       defmodule ToPipelineTest do

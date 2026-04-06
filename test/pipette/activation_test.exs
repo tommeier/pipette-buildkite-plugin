@@ -496,4 +496,173 @@ defmodule Pipette.ActivationTest do
       assert web_count == 1
     end
   end
+
+  describe "ignore_global_scope" do
+    defp pipeline_with_ignore_global_scope do
+      test_pipeline(%{
+        groups: [
+          %Pipette.Group{
+            name: :api,
+            label: ":elixir: API",
+            scope: :api_code,
+            steps: [%Pipette.Step{name: :test, label: "Test"}]
+          },
+          %Pipette.Group{
+            name: :web,
+            label: ":react: Web",
+            scope: :web_code,
+            steps: [%Pipette.Step{name: :test, label: "Test"}]
+          },
+          %Pipette.Group{
+            name: :deploy,
+            label: ":rocket: Deploy",
+            scope: :web_code,
+            ignore_global_scope: true,
+            depends_on: :web,
+            only: ["main", "gh-readonly-queue/**"],
+            steps: [
+              %Pipette.Step{name: :pre_release, label: "Pre-Release"},
+              %Pipette.Step{name: :release, label: "Release", depends_on: :pre_release}
+            ]
+          },
+          %Pipette.Group{
+            name: :infra,
+            label: ":terraform: Infra",
+            scope: :infra_code,
+            steps: [%Pipette.Step{name: :validate, label: "Validate"}]
+          }
+        ]
+      })
+    end
+
+    test "on main, excluded group does not activate when its scope files are unchanged" do
+      pipeline = pipeline_with_ignore_global_scope()
+
+      ctx = %Pipette.Context{
+        branch: "main",
+        default_branch: "main",
+        message: "Fix auth bug",
+        is_default_branch: true
+      }
+
+      result = Activation.resolve(pipeline, ctx, ["apps/api/lib/user.ex"])
+
+      group_names = MapSet.new(result.groups, & &1.name)
+      assert :api in group_names
+      assert :web in group_names
+      assert :infra in group_names
+      refute :deploy in group_names
+    end
+
+    test "on main, excluded group activates when its scope files match" do
+      pipeline = pipeline_with_ignore_global_scope()
+
+      ctx = %Pipette.Context{
+        branch: "main",
+        default_branch: "main",
+        message: "Update web",
+        is_default_branch: true
+      }
+
+      result = Activation.resolve(pipeline, ctx, ["apps/web/src/App.tsx"])
+
+      group_names = MapSet.new(result.groups, & &1.name)
+      assert :api in group_names
+      assert :web in group_names
+      assert :deploy in group_names
+      assert :infra in group_names
+    end
+
+    test "on merge queue, excluded group respects file detection" do
+      pipeline = pipeline_with_ignore_global_scope()
+
+      ctx = %Pipette.Context{
+        branch: "gh-readonly-queue/main/pr-42",
+        default_branch: "main",
+        message: "Merge PR",
+        is_default_branch: false
+      }
+
+      result = Activation.resolve(pipeline, ctx, ["apps/api/lib/user.ex"])
+
+      group_names = MapSet.new(result.groups, & &1.name)
+      assert :api in group_names
+      assert :web in group_names
+      assert :infra in group_names
+      refute :deploy in group_names
+    end
+
+    test "on feature branch, ignore_global_scope has no effect" do
+      pipeline = pipeline_with_ignore_global_scope()
+
+      ctx = %Pipette.Context{
+        branch: "feature/x",
+        default_branch: "main",
+        message: "Fix",
+        is_default_branch: false
+      }
+
+      result = Activation.resolve(pipeline, ctx, ["apps/web/src/App.tsx"])
+
+      group_names = MapSet.new(result.groups, & &1.name)
+      assert :web in group_names
+      refute :api in group_names
+      # deploy has only: ["main", ...] so filtered out on feature branch
+      refute :deploy in group_names
+    end
+
+    test "non-excluded groups still activate unconditionally on main" do
+      pipeline = pipeline_with_ignore_global_scope()
+
+      ctx = %Pipette.Context{
+        branch: "main",
+        default_branch: "main",
+        message: "Docs only",
+        is_default_branch: true
+      }
+
+      result = Activation.resolve(pipeline, ctx, ["docs/guide.md"])
+
+      group_names = MapSet.new(result.groups, & &1.name)
+      assert :api in group_names
+      assert :web in group_names
+      assert :infra in group_names
+      refute :deploy in group_names
+    end
+
+    test "force_groups overrides ignore_global_scope" do
+      pipeline = pipeline_with_ignore_global_scope()
+
+      ctx = %Pipette.Context{
+        branch: "main",
+        default_branch: "main",
+        message: "Force deploy",
+        is_default_branch: true
+      }
+
+      result =
+        Activation.resolve(pipeline, ctx, ["apps/api/lib/user.ex"], MapSet.new([:deploy]))
+
+      group_names = MapSet.new(result.groups, & &1.name)
+      assert :web in group_names
+      assert :deploy in group_names
+    end
+
+    test "force_groups :all overrides ignore_global_scope" do
+      pipeline = pipeline_with_ignore_global_scope()
+
+      ctx = %Pipette.Context{
+        branch: "main",
+        default_branch: "main",
+        message: "Force everything",
+        is_default_branch: true
+      }
+
+      result = Activation.resolve(pipeline, ctx, ["README.md"], :all)
+
+      group_names = MapSet.new(result.groups, & &1.name)
+      assert :web in group_names
+      assert :deploy in group_names
+    end
+  end
 end
