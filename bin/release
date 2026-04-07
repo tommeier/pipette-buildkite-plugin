@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Usage: bin/release <major|minor|patch>
-# Bumps version, updates docs, runs tests, commits, tags, pushes, and creates a GitHub release.
+# Bumps version, generates changelog, runs tests, commits, tags, pushes,
+# creates a GitHub release, and publishes to Hex.
 
 BUMP_TYPE="${1:-}"
 
@@ -37,6 +38,8 @@ esac
 NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 HEX_VERSION="~> ${MAJOR}.${MINOR}"
 TAG="v${NEW_VERSION}"
+TODAY="$(date +%Y-%m-%d)"
+PREV_TAG="v${CURRENT}"
 
 echo "Bumping $CURRENT -> $NEW_VERSION ($BUMP_TYPE)"
 echo ""
@@ -54,9 +57,7 @@ DOC_FILES=(
 
 for file in "${DOC_FILES[@]}"; do
   if [[ -f "$file" ]]; then
-    # Update hex version: "~> X.Y" -> new
     sed -i '' "s/\"~> [0-9]*\.[0-9]*\"/\"${HEX_VERSION}\"/g" "$file"
-    # Update plugin tag: #vX.Y.Z -> new
     sed -i '' "s/pipette#v[0-9]*\.[0-9]*\.[0-9]*/pipette#${TAG}/g" "$file"
   fi
 done
@@ -68,7 +69,52 @@ for file in "${DOC_FILES[@]}"; do
 done
 echo ""
 
-# 3. Run tests
+# 3. Generate changelog entry from commits since last tag
+echo "Generating changelog entry..."
+COMMITS="$(git log --oneline "${PREV_TAG}"..HEAD | grep -v "Release v")"
+
+if [[ -z "$COMMITS" ]]; then
+  echo "Warning: no commits found since ${PREV_TAG}"
+  CHANGELOG_ENTRY="## [${NEW_VERSION}](https://github.com/tommeier/pipette-buildkite-plugin/compare/${PREV_TAG}...${TAG}) — ${TODAY}"
+else
+  CHANGELOG_ENTRY="## [${NEW_VERSION}](https://github.com/tommeier/pipette-buildkite-plugin/compare/${PREV_TAG}...${TAG}) — ${TODAY}
+
+### Changed
+"
+  while IFS= read -r line; do
+    # Strip the commit hash prefix
+    msg="${line#* }"
+    CHANGELOG_ENTRY="${CHANGELOG_ENTRY}
+- ${msg}"
+  done <<< "$COMMITS"
+fi
+
+# Insert the new entry after the "# Changelog" header
+CHANGELOG_FILE="CHANGELOG.md"
+if [[ -f "$CHANGELOG_FILE" ]]; then
+  # Insert after the header line and blank line
+  TEMP_FILE="$(mktemp)"
+  {
+    head -3 "$CHANGELOG_FILE"
+    echo ""
+    echo "$CHANGELOG_ENTRY"
+    tail -n +4 "$CHANGELOG_FILE"
+  } > "$TEMP_FILE"
+  mv "$TEMP_FILE" "$CHANGELOG_FILE"
+else
+  cat > "$CHANGELOG_FILE" <<CHEOF
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+${CHANGELOG_ENTRY}
+CHEOF
+fi
+
+echo "  $CHANGELOG_FILE"
+echo ""
+
+# 4. Run tests
 echo "Running tests..."
 if ! mix test; then
   echo ""
@@ -78,27 +124,37 @@ if ! mix test; then
 fi
 echo ""
 
-# 4. Commit
-git add mix.exs "${DOC_FILES[@]}"
+# 5. Commit
+git add mix.exs "$CHANGELOG_FILE" "${DOC_FILES[@]}"
 git commit -m "Release ${TAG}
 
 Bump version ${CURRENT} -> ${NEW_VERSION} and update doc references."
 
-# 5. Tag
+# 6. Tag
 git tag "$TAG"
 
-# 6. Push
+# 7. Push
 echo "Pushing to origin..."
 git push origin main
 git push origin "$TAG"
 
-# 7. GitHub release
+# 8. GitHub release (use changelog entry as notes)
 echo "Creating GitHub release..."
-RELEASE_URL="$(gh release create "$TAG" --generate-notes)"
+RELEASE_NOTES="$(echo "$CHANGELOG_ENTRY" | tail -n +2)"
+RELEASE_URL="$(gh release create "$TAG" --notes "$RELEASE_NOTES")"
+
+# 9. Publish to Hex
+if [[ -n "${HEX_API_KEY:-}" ]]; then
+  echo "Publishing to Hex..."
+  mix hex.publish --yes
+else
+  echo ""
+  echo "To publish to Hex:"
+  echo "  mix hex.publish"
+  echo ""
+  echo "Or set HEX_API_KEY in ~/.localrc for automatic publishing."
+fi
 
 echo ""
 echo "Released ${TAG}"
 echo "  ${RELEASE_URL}"
-echo ""
-echo "To publish to Hex:"
-echo "  mix hex.publish"

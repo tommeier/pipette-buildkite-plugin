@@ -35,7 +35,7 @@ defmodule Pipette.MixProject do
   defp package do
     [
       licenses: ["MIT"],
-      files: ~w(lib mix.exs README.md LICENSE .formatter.exs),
+      files: ~w(lib mix.exs README.md CHANGELOG.md LICENSE .formatter.exs),
       links: %{"GitHub" => @source_url}
     ]
   end
