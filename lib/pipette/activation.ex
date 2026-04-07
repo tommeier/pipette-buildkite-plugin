@@ -33,7 +33,11 @@ defmodule Pipette.Activation do
   6. **`only` filter** — remove groups whose `:only` branch pattern doesn't
      match the current branch. Force-activated groups bypass this filter.
 
-  7. **Step filter** — if targeting specified individual steps (e.g.
+  7. **Step `only` filter** — within each remaining group, remove steps
+     whose `:only` branch pattern doesn't match the current branch.
+     Groups left with no steps are dropped entirely.
+
+  8. **Step filter** — if targeting specified individual steps (e.g.
      `[ci:api/test]`), keep only those steps and their intra-group
      dependencies.
 
@@ -109,6 +113,7 @@ defmodule Pipette.Activation do
 
     active_groups = pull_dependencies(active_groups, pipeline.groups)
     active_groups = apply_only_filter(active_groups, ctx, force_groups)
+    active_groups = apply_step_only_filter(active_groups, ctx)
     active_groups = apply_step_filter(active_groups, targets)
 
     %{groups: active_groups}
@@ -295,6 +300,23 @@ defmodule Pipette.Activation do
         end
       end
     end)
+  end
+
+  defp apply_step_only_filter(groups, %Context{} = ctx) do
+    groups
+    |> Enum.map(fn group ->
+      filtered_steps =
+        Enum.filter(group.steps, fn step ->
+          case step.only do
+            nil -> true
+            only when is_binary(only) -> Git.matches_glob?(ctx.branch, only)
+            only when is_list(only) -> Enum.any?(only, &Git.matches_glob?(ctx.branch, &1))
+          end
+        end)
+
+      %{group | steps: filtered_steps}
+    end)
+    |> Enum.reject(fn group -> group.steps == [] end)
   end
 
   defp apply_step_filter(groups, nil), do: groups

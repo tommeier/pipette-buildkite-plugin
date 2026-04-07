@@ -291,6 +291,160 @@ defmodule Pipette.ActivationTest do
     end
   end
 
+  describe "step-level only filtering" do
+    defp pipeline_with_step_only do
+      test_pipeline(%{
+        groups: [
+          %Pipette.Group{
+            name: :ci,
+            label: ":docker: CI",
+            scope: :api_code,
+            steps: [
+              %Pipette.Step{name: :build_test, label: "Build & Test"},
+              %Pipette.Step{
+                name: :update_digest,
+                label: "Update Digest",
+                depends_on: :build_test,
+                only: "main"
+              }
+            ]
+          },
+          %Pipette.Group{
+            name: :api,
+            label: ":elixir: API",
+            scope: :api_code,
+            steps: [
+              %Pipette.Step{name: :test, label: "Test"},
+              %Pipette.Step{name: :lint, label: "Lint"}
+            ]
+          }
+        ]
+      })
+    end
+
+    test "step with only: main is included on main" do
+      pipeline = pipeline_with_step_only()
+
+      ctx = %Pipette.Context{
+        branch: "main",
+        default_branch: "main",
+        message: "Deploy",
+        is_default_branch: true
+      }
+
+      result = Activation.resolve(pipeline, ctx, ["apps/api/lib/user.ex"])
+
+      ci = Enum.find(result.groups, &(&1.name == :ci))
+      step_names = Enum.map(ci.steps, & &1.name)
+      assert :build_test in step_names
+      assert :update_digest in step_names
+    end
+
+    test "step with only: main is excluded on feature branch" do
+      pipeline = pipeline_with_step_only()
+
+      ctx = %Pipette.Context{
+        branch: "feature/x",
+        default_branch: "main",
+        message: "Fix",
+        is_default_branch: false
+      }
+
+      result = Activation.resolve(pipeline, ctx, ["apps/api/lib/user.ex"])
+
+      ci = Enum.find(result.groups, &(&1.name == :ci))
+      step_names = Enum.map(ci.steps, & &1.name)
+      assert :build_test in step_names
+      refute :update_digest in step_names
+    end
+
+    test "group is removed when all steps are filtered by only" do
+      pipeline =
+        test_pipeline(%{
+          groups: [
+            %Pipette.Group{
+              name: :deploy_only,
+              label: ":rocket: Deploy",
+              scope: :api_code,
+              steps: [
+                %Pipette.Step{name: :release, label: "Release", only: "main"}
+              ]
+            },
+            %Pipette.Group{
+              name: :api,
+              label: ":elixir: API",
+              scope: :api_code,
+              steps: [%Pipette.Step{name: :test, label: "Test"}]
+            }
+          ]
+        })
+
+      ctx = %Pipette.Context{
+        branch: "feature/x",
+        default_branch: "main",
+        message: "Fix",
+        is_default_branch: false
+      }
+
+      result = Activation.resolve(pipeline, ctx, ["apps/api/lib/user.ex"])
+
+      group_names = MapSet.new(result.groups, & &1.name)
+      assert :api in group_names
+      refute :deploy_only in group_names
+    end
+
+    test "step with only as list matches glob patterns" do
+      pipeline =
+        test_pipeline(%{
+          groups: [
+            %Pipette.Group{
+              name: :ci,
+              label: ":docker: CI",
+              scope: :api_code,
+              steps: [
+                %Pipette.Step{name: :build, label: "Build"},
+                %Pipette.Step{
+                  name: :deploy,
+                  label: "Deploy",
+                  only: ["main", "gh-readonly-queue/**"]
+                }
+              ]
+            }
+          ]
+        })
+
+      ctx = %Pipette.Context{
+        branch: "gh-readonly-queue/main/pr-42",
+        default_branch: "main",
+        message: "Merge",
+        is_default_branch: false
+      }
+
+      result = Activation.resolve(pipeline, ctx, ["apps/api/lib/user.ex"])
+
+      ci = Enum.find(result.groups, &(&1.name == :ci))
+      step_names = Enum.map(ci.steps, & &1.name)
+      assert :build in step_names
+      assert :deploy in step_names
+    end
+
+    test "steps without only are unaffected" do
+      pipeline = pipeline_with_step_only()
+
+      ctx = %Pipette.Context{
+        branch: "feature/x",
+        default_branch: "main",
+        message: "Fix",
+        is_default_branch: false
+      }
+
+      result = Activation.resolve(pipeline, ctx, ["apps/api/lib/user.ex"])
+
+      api = Enum.find(result.groups, &(&1.name == :api))
+      assert length(api.steps) == 2
+    end
+  end
+
   describe "git diff failure (:all changed files)" do
     test "activates all groups when changed_files is :all" do
       pipeline = test_pipeline()

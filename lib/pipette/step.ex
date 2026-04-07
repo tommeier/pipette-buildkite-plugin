@@ -28,6 +28,9 @@ defmodule Pipette.Step do
     * `:skip` (`boolean() | String.t() | nil`) — skip condition
     * `:cancel_on_build_failing` (`boolean() | nil`) — cancel if build fails
     * `:allow_dependency_failure` (`boolean() | nil`) — run even if deps fail
+    * `:only` (`String.t() | [String.t()] | nil`) — branch pattern(s)
+      restricting this step to specific branches. The step is excluded from
+      the pipeline YAML when the current branch doesn't match.
     * `:branches` (`String.t() | nil`) — branch filter
     * `:if_condition` (`String.t() | nil`) — conditional expression
     * `:matrix` (`list() | map() | nil`) — matrix build configuration
@@ -65,6 +68,7 @@ defmodule Pipette.Step do
     :skip,
     :cancel_on_build_failing,
     :allow_dependency_failure,
+    :only,
     :branches,
     :if_condition,
     :matrix,
@@ -101,6 +105,7 @@ defmodule Pipette.Step do
           skip: boolean() | String.t() | nil,
           cancel_on_build_failing: boolean() | nil,
           allow_dependency_failure: boolean() | nil,
+          only: String.t() | [String.t()] | nil,
           branches: String.t() | nil,
           if_condition: String.t() | nil,
           matrix: list() | map() | nil,

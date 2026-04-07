@@ -217,6 +217,45 @@ defmodule Pipette.DslTest do
     end
   end
 
+  describe "step-level only" do
+    test "step with only: keyword compiles and stores the value" do
+      defmodule StepOnlyPipeline do
+        use Pipette.DSL
+
+        scope(:code, files: ["lib/**"])
+
+        group :ci do
+          label("CI")
+          scope(:code)
+          step(:build, label: "Build", command: "make build")
+          step(:publish, label: "Publish", command: "make publish", only: "main")
+        end
+      end
+
+      [group] = Pipette.Info.groups(StepOnlyPipeline)
+      publish = Enum.find(group.steps, &(&1.name == :publish))
+      assert publish.only == "main"
+
+      build = Enum.find(group.steps, &(&1.name == :build))
+      assert build.only == nil
+    end
+
+    test "step with only: list compiles" do
+      defmodule StepOnlyListPipeline do
+        use Pipette.DSL
+
+        group :ci do
+          label("CI")
+          step(:deploy, label: "Deploy", command: "./deploy.sh", only: ["main", "release/*"])
+        end
+      end
+
+      [group] = Pipette.Info.groups(StepOnlyListPipeline)
+      [step] = group.steps
+      assert step.only == ["main", "release/*"]
+    end
+  end
+
   describe "to_pipeline/1" do
     test "assembles a Pipeline struct from Spark data" do
       defmodule ToPipelineTest do
