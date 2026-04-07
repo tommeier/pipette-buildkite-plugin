@@ -63,7 +63,7 @@ end
 Create a pipeline script at `.buildkite/pipeline.exs`:
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.4"}])
+Mix.install([{:buildkite_pipette, "~> 0.5"}])
 Pipette.run(MyApp.Pipeline)
 ```
 
@@ -81,14 +81,14 @@ Add `pipette` to your `mix.exs` dependencies:
 
 ```elixir
 def deps do
-  [{:buildkite_pipette, "~> 0.4"}]
+  [{:buildkite_pipette, "~> 0.5"}]
 end
 ```
 
 Or use `Mix.install` in standalone pipeline scripts (no project required):
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.4"}])
+Mix.install([{:buildkite_pipette, "~> 0.5"}])
 ```
 
 ## How It Works
@@ -232,7 +232,7 @@ This repository doubles as a Buildkite plugin. Instead of adding `pipette` to a 
 ```yaml
 steps:
   - plugins:
-      - tommeier/pipette#v0.4.7:
+      - tommeier/pipette#v0.5.0:
           pipeline: .buildkite/pipeline.exs
 ```
 
@@ -240,7 +240,7 @@ The plugin runs `elixir <pipeline>` — your pipeline script should use `Mix.ins
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:buildkite_pipette, "~> 0.4"}])
+Mix.install([{:buildkite_pipette, "~> 0.5"}])
 
 defmodule MyApp.Pipeline do
   use Pipette.DSL
