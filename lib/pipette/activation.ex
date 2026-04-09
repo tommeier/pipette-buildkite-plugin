@@ -163,7 +163,10 @@ defmodule Pipette.Activation do
 
   defp activate_from_scopes(fired, scopes, groups) do
     if Enum.any?(scopes, &(&1.name in fired and &1.activates == :all)) do
-      groups
+      Enum.filter(groups, fn group ->
+        !group.ignore_global_scope or
+          (group.scope != nil and MapSet.member?(fired, group.scope))
+      end)
     else
       directly_active =
         groups

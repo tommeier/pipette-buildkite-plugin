@@ -784,6 +784,84 @@ defmodule Pipette.ActivationTest do
       refute :deploy in group_names
     end
 
+    test "on main, excluded group does not activate via activates: :all from another scope" do
+      pipeline = pipeline_with_ignore_global_scope()
+
+      ctx = %Pipette.Context{
+        branch: "main",
+        default_branch: "main",
+        message: "Update CI config",
+        is_default_branch: true
+      }
+
+      # Justfile triggers root_config which has activates: :all —
+      # deploy has ignore_global_scope so should NOT be pulled in
+      result = Activation.resolve(pipeline, ctx, ["Justfile"])
+
+      group_names = MapSet.new(result.groups, & &1.name)
+      assert :api in group_names
+      assert :web in group_names
+      assert :infra in group_names
+      refute :deploy in group_names
+    end
+
+    test "on main, excluded group activates when its scope fires alongside activates: :all" do
+      pipeline = pipeline_with_ignore_global_scope()
+
+      ctx = %Pipette.Context{
+        branch: "main",
+        default_branch: "main",
+        message: "Update CI and web",
+        is_default_branch: true
+      }
+
+      # Both root_config (activates: :all) and web_code (deploy's scope) fire
+      result = Activation.resolve(pipeline, ctx, ["Justfile", "apps/web/src/App.tsx"])
+
+      group_names = MapSet.new(result.groups, & &1.name)
+      assert :api in group_names
+      assert :web in group_names
+      assert :infra in group_names
+      assert :deploy in group_names
+    end
+
+    test "on feature branch, excluded group does not activate via activates: :all" do
+      # Use a pipeline where the excluded group has NO only: filter,
+      # so the only thing protecting it is ignore_global_scope
+      pipeline =
+        test_pipeline(%{
+          groups: [
+            %Pipette.Group{
+              name: :api,
+              label: ":elixir: API",
+              scope: :api_code,
+              steps: [%Pipette.Step{name: :test, label: "Test"}]
+            },
+            %Pipette.Group{
+              name: :special,
+              label: ":lock: Special",
+              scope: :infra_code,
+              ignore_global_scope: true,
+              steps: [%Pipette.Step{name: :validate, label: "Validate"}]
+            }
+          ]
+        })
+
+      ctx = %Pipette.Context{
+        branch: "feature/ci",
+        default_branch: "main",
+        message: "Update Justfile",
+        is_default_branch: false
+      }
+
+      # Justfile triggers root_config (activates: :all) but special has ignore_global_scope
+      result = Activation.resolve(pipeline, ctx, ["Justfile"])
+
+      group_names = MapSet.new(result.groups, & &1.name)
+      assert :api in group_names
+      refute :special in group_names
+    end
+
     test "force_groups overrides ignore_global_scope" do
       pipeline = pipeline_with_ignore_global_scope()
 
