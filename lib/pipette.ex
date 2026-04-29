@@ -177,7 +177,24 @@ defmodule Pipette do
 
     all_groups =
       Enum.map(all_groups, fn group ->
-        %{group | depends_on: resolve_depends_on_keys(group.depends_on, group_key_map)}
+        # Resolve nested-trigger depends_on against the top-level group
+        # key map (mirroring top-level trigger semantics). Steps inside
+        # the group already had their depends_on resolved at compile time
+        # by GenerateKeys.
+        resolved_steps =
+          Enum.map(group.steps, fn
+            %Pipette.Trigger{} = trigger ->
+              %{trigger | depends_on: resolve_depends_on_keys(trigger.depends_on, group_key_map)}
+
+            other ->
+              other
+          end)
+
+        %{
+          group
+          | depends_on: resolve_depends_on_keys(group.depends_on, group_key_map),
+            steps: resolved_steps
+        }
       end)
 
     triggers =

@@ -79,10 +79,13 @@ defmodule Pipette.Buildkite do
     %{
       "group" => group.label || to_string(group.name),
       "key" => group.key || to_string(group.name),
-      "steps" => Enum.map(group.steps, &serialize_step/1)
+      "steps" => Enum.map(group.steps, &serialize_group_child/1)
     }
     |> put_if("depends_on", serialize_depends_on(group.depends_on))
   end
+
+  defp serialize_group_child(%Pipette.Step{} = step), do: serialize_step(step)
+  defp serialize_group_child(%Pipette.Trigger{} = trigger), do: serialize_trigger(trigger)
 
   defp serialize_step(step) do
     %{
