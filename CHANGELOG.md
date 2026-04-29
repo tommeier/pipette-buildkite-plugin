@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0](https://github.com/tommeier/pipette-buildkite-plugin/compare/v0.5.1...v0.6.0) — 2026-04-29
+
+### Added
+
+- `trigger` may now be declared inside a `group` (alongside `step` entries),
+  rendering as a child of the group's card on the Buildkite canvas. Useful
+  when a logical phase combines a cross-pipeline trigger and follow-up
+  command steps (e.g. trigger a deploy pipeline, then tag the commit).
+- Nested-trigger `depends_on` accepts atoms (matched against sibling step
+  names at compile time, then top-level group names at runtime) and
+  explicit string keys.
+
+### Changed
+
+- `Pipette.Group.steps` is now a heterogeneous list of `Pipette.Step` and
+  `Pipette.Trigger` structs (was `[Pipette.Step.t()]`).
+- `Pipette.Trigger.depends_on` schema relaxed from `{:or, [:atom, {:list,
+  :atom}]}` to `:any` so explicit string keys are accepted (matching how
+  step `depends_on` already worked).
+
 ## [0.5.1](https://github.com/tommeier/pipette-buildkite-plugin/compare/v0.5.0...v0.5.1) — 2026-04-09
 
 ### Fixed

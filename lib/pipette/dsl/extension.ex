@@ -57,13 +57,38 @@ defmodule Pipette.Dsl.Extension do
     ]
   }
 
+  @trigger %Spark.Dsl.Entity{
+    name: :trigger,
+    describe: "Triggers a downstream Buildkite pipeline.",
+    target: Pipette.Trigger,
+    args: [:name],
+    identifier: :name,
+    schema: [
+      name: [type: :atom, required: true, doc: "Unique trigger identifier."],
+      label: [type: :string, doc: "Display label in Buildkite UI."],
+      pipeline: [type: :string, required: true, doc: "Downstream pipeline slug."],
+      depends_on: [
+        # Atoms reference top-level groups (or, when nested, sibling steps);
+        # strings are explicit Buildkite keys that pass through unchanged.
+        type: :any,
+        doc:
+          "Atom (group/sibling-step name) or string (explicit Buildkite key). " <>
+            "May also be a list mixing both forms."
+      ],
+      only: [type: {:or, [:string, {:list, :string}]}, doc: "Branch restriction."],
+      build: [type: :map, doc: "Build parameters for the triggered pipeline."],
+      async: [type: :boolean, default: false, doc: "Fire and forget."],
+      key: [type: :string, doc: "Override auto-generated Buildkite key."]
+    ]
+  }
+
   @group %Spark.Dsl.Entity{
     name: :group,
     describe: "A group of related CI steps that share activation scope.",
     target: Pipette.Group,
     args: [:name],
     identifier: :name,
-    entities: [steps: [@step], scope_refs: [@scope_ref]],
+    entities: [steps: [@step, @trigger], scope_refs: [@scope_ref]],
     schema: [
       name: [type: :atom, required: true, doc: "Unique group identifier."],
       label: [type: :string, doc: "Display label in Buildkite UI."],
@@ -119,27 +144,6 @@ defmodule Pipette.Dsl.Extension do
         type: {:in, [:all]},
         doc: "Set to `:all` to activate all groups when this scope fires."
       ]
-    ]
-  }
-
-  @trigger %Spark.Dsl.Entity{
-    name: :trigger,
-    describe: "Triggers a downstream Buildkite pipeline.",
-    target: Pipette.Trigger,
-    args: [:name],
-    identifier: :name,
-    schema: [
-      name: [type: :atom, required: true, doc: "Unique trigger identifier."],
-      label: [type: :string, doc: "Display label in Buildkite UI."],
-      pipeline: [type: :string, required: true, doc: "Downstream pipeline slug."],
-      depends_on: [
-        type: {:or, [:atom, {:list, :atom}]},
-        doc: "Group(s) that must complete before triggering."
-      ],
-      only: [type: {:or, [:string, {:list, :string}]}, doc: "Branch restriction."],
-      build: [type: :map, doc: "Build parameters for the triggered pipeline."],
-      async: [type: :boolean, default: false, doc: "Fire and forget."],
-      key: [type: :string, doc: "Override auto-generated Buildkite key."]
     ]
   }
 

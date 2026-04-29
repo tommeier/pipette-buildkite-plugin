@@ -25,8 +25,10 @@ defmodule Pipette.Group do
       restricting this group to specific branches
     * `:key` (`String.t() | nil`) — explicit Buildkite group key
       (auto-derived from `:name` if omitted)
-    * `:steps` (`[Pipette.Step.t()]`) — ordered list of command steps
-      in this group
+    * `:steps` (`[Pipette.Step.t() | Pipette.Trigger.t()]`) — ordered
+      list of command steps and/or trigger steps in this group.
+      Trigger steps inside a group fire downstream pipelines as part of
+      the group's lifecycle (rather than as a top-level pipeline trigger)
 
   ## Example
 
@@ -64,6 +66,6 @@ defmodule Pipette.Group do
           only: String.t() | [String.t()] | nil,
           key: String.t() | nil,
           scope_refs: [Pipette.ScopeRef.t()],
-          steps: [Pipette.Step.t()]
+          steps: [Pipette.Step.t() | Pipette.Trigger.t()]
         }
 end

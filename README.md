@@ -188,7 +188,7 @@ A group of Buildkite steps. Groups are the unit of activation — when a scope f
 | `scope` | `atom() \| nil` | Scope that activates this group |
 | `depends_on` | `atom() \| [atom()] \| nil` | Groups this group depends on |
 | `only` | `String.t() \| [String.t()] \| nil` | Branch pattern(s) restricting this group |
-| `steps` | `[Step.t()]` | Command steps in this group |
+| `steps` | `[Step.t() \| Trigger.t()]` | Command steps and/or trigger steps in this group |
 
 ### `Pipette.Step`
 
@@ -213,17 +213,52 @@ See `Pipette.Step` module docs for the full list of fields.
 
 ### `Pipette.Trigger`
 
-Fires a downstream Buildkite pipeline.
+Fires a downstream Buildkite pipeline. Can be declared at the top level (sibling to `group`) or **nested inside a group** (alongside `step` entries) — see [Nested triggers](#nested-triggers).
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `name` | `atom()` | Unique trigger identifier |
 | `label` | `String.t() \| nil` | Display label |
 | `pipeline` | `String.t()` | Slug of the pipeline to trigger |
-| `depends_on` | `atom() \| [atom()] \| nil` | Groups that must complete first |
+| `depends_on` | `atom() \| String.t() \| [atom() \| String.t()] \| nil` | Atom (group/sibling-step name) or string (explicit Buildkite key) |
 | `only` | `String.t() \| [String.t()] \| nil` | Branch filter |
 | `build` | `map() \| nil` | Build parameters to pass |
 | `async` | `boolean() \| nil` | Don't wait for the triggered build |
+
+#### Nested triggers
+
+A trigger declared inside a `group` becomes a child of that group on the Buildkite canvas — the trigger renders inside the group's card alongside any sibling command steps. Use this when a logical phase combines a cross-pipeline trigger and follow-up command steps (e.g. trigger a deploy pipeline, then tag the commit and post a release).
+
+```elixir
+group :backend_deploy do
+  label ":rocket: Backend Deploy"
+  scope :backend_code
+  only "main"
+
+  trigger :rollout do
+    label ":rocket: Deploy"
+    pipeline "deploy-production"
+    depends_on :backend           # top-level group reference (resolved at runtime)
+    build %{commit: "${BUILDKITE_COMMIT}"}
+  end
+
+  step :tag_release,
+    label: ":github: Tag & Release",
+    command: "bash tag-release.sh",
+    depends_on: :rollout          # sibling-trigger reference (resolved at compile time)
+end
+```
+
+`depends_on` resolution for nested triggers:
+
+| Form | Resolves to |
+|------|-------------|
+| `:atom` matching a sibling step or trigger name | Sibling's key (compile time) |
+| `:atom` matching a top-level group name | Top-level group's key (runtime) |
+| `"explicit-key"` | Pass-through (no resolution) |
+| `[atom \| string \| ...]` | Each element resolved by the same rules |
+
+A trigger filtered out by `:only` is dropped from the group's child list at activation time. If that empties the group entirely, the group itself is dropped.
 
 ## Buildkite Plugin
 

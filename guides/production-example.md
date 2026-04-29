@@ -294,6 +294,38 @@ trigger :deploy_downstream do
 end
 ```
 
+### Bundling a trigger with follow-up steps
+
+When a downstream trigger has follow-up work that runs *back in the parent pipeline* (e.g. tag the commit, post Slack), nesting the trigger inside a group keeps the whole phase as one card on the Buildkite canvas:
+
+```elixir
+group :api_deploy do
+  label(":rocket: API Deploy")
+  scope(:api_code)
+  only("main")
+
+  trigger :rollout do
+    label(":rocket: Deploy")
+    pipeline("production-deploy")
+    depends_on(:api)                  # top-level group, resolved at runtime
+
+    build(%{
+      commit: "${BUILDKITE_COMMIT}",
+      branch: "${BUILDKITE_BRANCH}",
+      message: "${BUILDKITE_MESSAGE}"
+    })
+  end
+
+  step(:tag_release,
+    label: ":github: Tag & Release",
+    command: "bash tag-release.sh",
+    depends_on: :rollout              # sibling trigger, resolved at compile time
+  )
+end
+```
+
+Pipette emits a single `group:` step in the YAML containing both the trigger and the follow-up command step, so the Buildkite UI renders them as siblings under one card — instead of a free-floating trigger and a separate one-step group.
+
 ### Force activation
 
 Setting `FORCE_DEPLOY=true` on a Buildkite build activates `:api`, `:web`, and `:deploy` regardless of which files changed or which branch you're on. This bypasses `only` branch filtering too — useful for hotfix deploys from a feature branch.
