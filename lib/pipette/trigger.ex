@@ -31,8 +31,9 @@ defmodule Pipette.Trigger do
     * `:label` (`String.t() | nil`) — display label in the Buildkite UI
     * `:pipeline` (`String.t()`) — slug of the Buildkite pipeline to
       trigger (e.g. `"deploy-production"`)
-    * `:depends_on` — atom (sibling step or top-level group),
-      string (explicit Buildkite key), or list mixing the two forms
+    * `:depends_on` — atom (sibling step or top-level group), tuple,
+      string (explicit Buildkite key), `Pipette.Optional`, or list mixing those
+      forms
     * `:only` (`String.t() | [String.t()] | nil`) — branch pattern(s)
       restricting when this trigger fires
     * `:build` (`map() | nil`) — build parameters to pass
@@ -90,7 +91,13 @@ defmodule Pipette.Trigger do
           name: atom(),
           label: String.t() | nil,
           pipeline: String.t(),
-          depends_on: atom() | [atom()] | nil,
+          depends_on:
+            atom()
+            | {atom(), atom()}
+            | String.t()
+            | Pipette.Optional.t()
+            | [atom() | {atom(), atom()} | String.t() | Pipette.Optional.t()]
+            | nil,
           only: String.t() | [String.t()] | nil,
           build: map() | nil,
           async: boolean() | nil,

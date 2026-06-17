@@ -108,10 +108,15 @@ defmodule Pipette.Graph do
     add_edge(graph, name, String.to_atom(dep))
   end
 
+  defp add_group_deps(graph, %{name: name, depends_on: %Pipette.Optional{dep: dep}}) do
+    add_group_deps(graph, %{name: name, depends_on: dep})
+  end
+
   defp add_group_deps(graph, %{name: name, depends_on: deps}) when is_list(deps) do
     Enum.reduce(deps, graph, fn
       dep, g when is_atom(dep) -> add_edge(g, name, dep)
       dep, g when is_binary(dep) -> add_edge(g, name, String.to_atom(dep))
+      %Pipette.Optional{dep: dep}, g -> add_group_deps(g, %{name: name, depends_on: dep})
     end)
   end
 
@@ -123,6 +128,10 @@ defmodule Pipette.Graph do
 
   defp add_step_deps(graph, %{name: step_name, depends_on: {target_group, target_step}}, group) do
     add_edge(graph, {group.name, step_name}, {target_group, target_step})
+  end
+
+  defp add_step_deps(graph, %{name: step_name, depends_on: %Pipette.Optional{dep: dep}}, group) do
+    add_step_deps(graph, %{name: step_name, depends_on: dep}, group)
   end
 
   defp add_step_deps(graph, %{name: step_name, depends_on: deps}, group) when is_list(deps) do

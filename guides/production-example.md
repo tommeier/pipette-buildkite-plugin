@@ -336,7 +336,7 @@ For smaller pipelines, put everything in one file:
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:buildkite_pipette, "~> 0.4"}])
+Mix.install([{:buildkite_pipette, "~> 0.7"}])
 
 defmodule Acme.Pipeline do
   use Pipette.DSL
@@ -350,7 +350,7 @@ For larger pipelines (or when the module is part of a Mix project), use `Code.re
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:buildkite_pipette, "~> 0.4"}])
+Mix.install([{:buildkite_pipette, "~> 0.7"}])
 Code.require_file("lib/acme/pipeline.ex")
 Pipette.run(Acme.Pipeline)
 ```

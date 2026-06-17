@@ -14,8 +14,10 @@ Define your CI pipeline with a declarative DSL powered by [Spark](https://hexdoc
 - **Branch policies** — run all groups on `main`, restrict to specific scopes on release branches, use file-based detection elsewhere
 - **Commit message targeting** — `[ci:api]` or `[ci:api/test]` in commit messages to run specific groups/steps
 - **Dependency propagation** — groups that `depends_on` an active group are pulled in automatically; scopeless groups activate when any dependency is active
+- **Optional dependencies** — wrap conditional step or trigger dependencies in `optional/1` so defined-but-inactive targets are dropped
 - **Force activation** — environment variables like `FORCE_DEPLOY=true` bypass scope detection to activate specific groups
 - **Dynamic groups** — `extra_groups` callback to generate groups at runtime (e.g. discovering packages in a directory)
+- **Runtime group transforms** — `transform_groups` callback to rewrite active groups before triggers and dependencies resolve
 - **Branch-scoped groups** — `only: "main"` restricts groups to specific branches
 - **Trigger steps** — fire downstream Buildkite pipelines when conditions are met
 - **Compile-time validation** — Spark verifiers catch scope ref errors, dependency cycles, and label collisions at compile time
@@ -63,7 +65,7 @@ end
 Create a pipeline script at `.buildkite/pipeline.exs`:
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.5"}])
+Mix.install([{:buildkite_pipette, "~> 0.7"}])
 Pipette.run(MyApp.Pipeline)
 ```
 
@@ -81,14 +83,14 @@ Add `pipette` to your `mix.exs` dependencies:
 
 ```elixir
 def deps do
-  [{:buildkite_pipette, "~> 0.5"}]
+  [{:buildkite_pipette, "~> 0.7"}]
 end
 ```
 
 Or use `Mix.install` in standalone pipeline scripts (no project required):
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.5"}])
+Mix.install([{:buildkite_pipette, "~> 0.7"}])
 ```
 
 ## How It Works
@@ -283,7 +285,7 @@ This repository doubles as a Buildkite plugin. Instead of adding `pipette` to a 
 ```yaml
 steps:
   - plugins:
-      - tommeier/pipette#v0.5.0:
+      - tommeier/pipette#v0.7.0:
           pipeline: .buildkite/pipeline.exs
 ```
 
@@ -291,7 +293,7 @@ The plugin runs `elixir <pipeline>` — your pipeline script should use `Mix.ins
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:buildkite_pipette, "~> 0.5"}])
+Mix.install([{:buildkite_pipette, "~> 0.7"}])
 
 defmodule MyApp.Pipeline do
   use Pipette.DSL

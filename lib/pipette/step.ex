@@ -15,7 +15,8 @@ defmodule Pipette.Step do
     * `:agents` (`map() | nil`) — agent targeting rules
     * `:plugins` (`list() | nil`) — Buildkite plugins to apply
     * `:secrets` (`[String.t()] | nil`) — secret names to inject
-    * `:depends_on` — step-level dependency (atom, tuple, or list)
+    * `:depends_on` — step-level dependency (atom, tuple, string,
+      `Pipette.Optional`, or list)
     * `:timeout_in_minutes` (`pos_integer() | nil`) — step timeout
     * `:concurrency` (`pos_integer() | nil`) — max concurrent jobs
     * `:concurrency_group` (`String.t() | nil`) — concurrency group name
@@ -89,9 +90,9 @@ defmodule Pipette.Step do
           depends_on:
             atom()
             | {atom(), atom()}
-            | [atom() | {atom(), atom()}]
             | String.t()
-            | [String.t()]
+            | Pipette.Optional.t()
+            | [atom() | {atom(), atom()} | String.t() | Pipette.Optional.t()]
             | nil,
           timeout_in_minutes: pos_integer() | nil,
           concurrency: pos_integer() | nil,
