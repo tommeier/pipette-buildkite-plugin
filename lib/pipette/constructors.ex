@@ -41,4 +41,14 @@ defmodule Pipette.Constructors do
   @spec trigger(atom(), keyword()) :: Pipette.Trigger.t()
   def trigger(name, opts \\ []),
     do: struct!(Pipette.Trigger, Keyword.put(opts, :name, name))
+
+  @doc """
+  Mark a `depends_on` reference as optional — see `Pipette.Optional`.
+
+  `import Pipette.Constructors, only: [optional: 1]` to use it inline:
+
+      depends_on [:build, optional(:backend_deploy)]
+  """
+  @spec optional(Pipette.Optional.ref()) :: Pipette.Optional.t()
+  def optional(dep), do: %Pipette.Optional{dep: dep}
 end

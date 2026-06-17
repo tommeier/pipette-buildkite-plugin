@@ -256,9 +256,25 @@ end
 | `:atom` matching a sibling step or trigger name | Sibling's key (compile time) |
 | `:atom` matching a top-level group name | Top-level group's key (runtime) |
 | `"explicit-key"` | Pass-through (no resolution) |
-| `[atom \| string \| ...]` | Each element resolved by the same rules |
+| `optional(ref)` | `ref` resolved as above, then dropped if its target isn't in this build |
+| `[atom \| string \| optional(...) \| ...]` | Each element resolved by the same rules |
 
 A trigger filtered out by `:only` is dropped from the group's child list at activation time. If that empties the group entirely, the group itself is dropped.
+
+#### Optional dependencies
+
+In a change-scoped pipeline a group only renders when its files change, so a trigger that depends on it can't *require* it. Wrap the reference in `optional/1` (import `Pipette.Constructors, only: [optional: 1]`) and `run/2` drops it when its target is defined in the pipeline but not active in this build:
+
+```elixir
+import Pipette.Constructors, only: [optional: 1]
+
+trigger :deploy_ios do
+  pipeline "deploy"
+  depends_on [:build, optional(:backend_deploy)]   # waits for the deploy only when it runs
+end
+```
+
+A normal (non-optional) dependency on something not in the build still dangles and fails the upload — as does an `optional/1` reference to a target that exists *nowhere* (a typo or stale rename). Only a defined-but-inactive target is dropped.
 
 ## Buildkite Plugin
 

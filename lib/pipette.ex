@@ -77,6 +77,12 @@ defmodule Pipette do
     * `:dry_run` — when `true`, returns YAML instead of uploading (defaults to `DRY_RUN=1`)
     * `:changed_files` — explicit list of changed files (skips `git diff`)
     * `:extra_groups` — 2-arity function `(ctx, changed_files) -> [Group.t()]` for dynamic groups
+    * `:transform_groups` — 1-arity function `(groups) -> groups` applied to the
+      active groups after activation, before triggers and `depends_on` resolve
+      (e.g. route steps to agent queues)
+
+  Wrap a `depends_on` reference in `optional/1` (see `Pipette.Optional`) to drop
+  it when its target group isn't activated by this build instead of dangling.
 
   ## Testing
 
@@ -115,6 +121,8 @@ defmodule Pipette do
     * `:dry_run` — return YAML instead of uploading (defaults to `DRY_RUN=1` env var)
     * `:changed_files` — explicit list of changed files (skips `git diff`)
     * `:extra_groups` — `fn ctx, changed_files -> [Group.t()]` for dynamic groups
+    * `:transform_groups` — `fn groups -> groups` applied to the active groups
+      after activation, before triggers and `depends_on` resolve
 
   ## Examples
 
@@ -161,7 +169,17 @@ defmodule Pipette do
 
     force_groups = resolve_force_groups(pipeline.force_activate, env)
     result = Activation.resolve(pipeline, ctx, changed_files, force_groups)
-    triggers = resolve_triggers(pipeline, result.groups, ctx)
+
+    # Optional post-activation hook: transform the active group list (e.g. route
+    # steps to specific agent queues) before triggers and depends_on resolve
+    # against it. Runs here so triggers see the transformed groups.
+    active_groups =
+      case Keyword.get(opts, :transform_groups) do
+        fun when is_function(fun, 1) -> fun.(result.groups)
+        _ -> result.groups
+      end
+
+    triggers = resolve_triggers(pipeline, active_groups, ctx)
 
     extra_groups =
       case Keyword.get(opts, :extra_groups) do
@@ -169,22 +187,35 @@ defmodule Pipette do
         _ -> []
       end
 
-    all_groups = result.groups ++ extra_groups
+    all_groups = active_groups ++ extra_groups
 
     # Resolve group/trigger depends_on atoms to key strings for Buildkite YAML.
     # The activation engine uses atom names internally; Buildkite needs key strings.
     group_key_map = Map.new(pipeline.groups ++ extra_groups, &{&1.name, &1.key})
 
+    # Keys defined in the pipeline but not activated by this build. An
+    # `optional/1` dep pointing at one is dropped (the target legitimately isn't
+    # in this build); every other dangling dep is kept so Buildkite rejects the
+    # upload loudly. See `Pipette.Optional`.
+    inactive =
+      MapSet.difference(
+        keys_of(pipeline.groups ++ extra_groups, pipeline.triggers),
+        keys_of(all_groups, triggers)
+      )
+
     all_groups =
       Enum.map(all_groups, fn group ->
-        # Resolve nested-trigger depends_on against the top-level group
-        # key map (mirroring top-level trigger semantics). Steps inside
-        # the group already had their depends_on resolved at compile time
-        # by GenerateKeys.
+        # Resolve nested-trigger and step depends_on against the top-level group
+        # key map (mirroring top-level trigger semantics) and drop inactive
+        # optional deps. Plain step deps were already key-resolved at compile time
+        # by GenerateKeys, so re-resolving them is a no-op.
         resolved_steps =
           Enum.map(group.steps, fn
             %Pipette.Trigger{} = trigger ->
-              %{trigger | depends_on: resolve_depends_on_keys(trigger.depends_on, group_key_map)}
+              %{trigger | depends_on: resolve_deps(trigger.depends_on, group_key_map, inactive)}
+
+            %Pipette.Step{} = step ->
+              %{step | depends_on: resolve_deps(step.depends_on, group_key_map, inactive)}
 
             other ->
               other
@@ -199,7 +230,7 @@ defmodule Pipette do
 
     triggers =
       Enum.map(triggers, fn trigger ->
-        %{trigger | depends_on: resolve_depends_on_keys(trigger.depends_on, group_key_map)}
+        %{trigger | depends_on: resolve_deps(trigger.depends_on, group_key_map, inactive)}
       end)
 
     if all_groups == [] and triggers == [] do
@@ -239,8 +270,43 @@ defmodule Pipette do
   defp resolve_depends_on_keys(dep, map) when is_atom(dep),
     do: Map.get(map, dep, Atom.to_string(dep))
 
+  defp resolve_depends_on_keys({group, step}, _map) when is_atom(group) and is_atom(step),
+    do: "#{group}-#{step}"
+
   defp resolve_depends_on_keys(deps, map) when is_list(deps),
     do: Enum.map(deps, &resolve_depends_on_keys(&1, map))
+
+  # The Buildkite key of every group, step, nested trigger, and top-level
+  # trigger in the given lists — the set of valid `depends_on` targets.
+  defp keys_of(groups, triggers) do
+    group_keys = Enum.flat_map(groups, fn g -> [g.key | Enum.map(g.steps, & &1.key)] end)
+    MapSet.new(group_keys ++ Enum.map(triggers, & &1.key))
+  end
+
+  # Resolve a depends_on value to key strings, unwrapping `optional/1` markers
+  # and dropping those whose target is defined-but-inactive (`inactive`).
+  defp resolve_deps(nil, _map, _inactive), do: nil
+
+  defp resolve_deps(deps, map, inactive) when is_list(deps) do
+    case Enum.flat_map(deps, &resolve_dep(&1, map, inactive)) do
+      [] -> nil
+      kept -> kept
+    end
+  end
+
+  defp resolve_deps(dep, map, inactive) do
+    case resolve_dep(dep, map, inactive) do
+      [kept] -> kept
+      [] -> nil
+    end
+  end
+
+  defp resolve_dep(%Pipette.Optional{dep: dep}, map, inactive) do
+    key = resolve_depends_on_keys(dep, map)
+    if MapSet.member?(inactive, key), do: [], else: [key]
+  end
+
+  defp resolve_dep(dep, map, _inactive), do: [resolve_depends_on_keys(dep, map)]
 
   @doc """
   Generate pipeline YAML without uploading. Convenience wrapper around `run/2`

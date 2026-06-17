@@ -95,6 +95,9 @@ defmodule Pipette.Dsl.Transformers.GenerateKeys do
   defp resolve_step_depends_on(nil, _group_key, _map), do: nil
   defp resolve_step_depends_on(dep, _group_key, _map) when is_binary(dep), do: dep
 
+  defp resolve_step_depends_on(%Pipette.Optional{dep: dep}, group_key, map),
+    do: %Pipette.Optional{dep: resolve_step_depends_on(dep, group_key, map)}
+
   defp resolve_step_depends_on(dep, group_key, step_key_map) when is_atom(dep) do
     # Look up the actual key of the referenced step within the same group.
     # Falls back to "group_key-step_name" if the step isn't found (cross-group ref).
@@ -114,6 +117,9 @@ defmodule Pipette.Dsl.Transformers.GenerateKeys do
   # top-level group key map). Strings always pass through.
   defp resolve_nested_trigger_depends_on(nil, _map), do: nil
   defp resolve_nested_trigger_depends_on(dep, _map) when is_binary(dep), do: dep
+
+  defp resolve_nested_trigger_depends_on(%Pipette.Optional{dep: dep}, map),
+    do: %Pipette.Optional{dep: resolve_nested_trigger_depends_on(dep, map)}
 
   defp resolve_nested_trigger_depends_on(dep, map) when is_atom(dep) do
     case Map.get(map, dep) do
