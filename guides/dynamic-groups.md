@@ -1,6 +1,6 @@
 # Dynamic Groups
 
-For monorepos where the set of packages or components isn't known at compile time, Pipette supports generating groups dynamically at runtime via the `extra_groups` callback.
+For monorepos where the set of packages or components isn't known at compile time, Pipette supports generating groups dynamically at runtime via `extra_groups`. If the groups are known but need runtime rewriting after activation, use `transform_groups`.
 
 ## The `extra_groups` Option
 
@@ -25,7 +25,7 @@ Discover packages in a `packages/` directory and generate a group for each with 
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:buildkite_pipette, "~> 0.4"}])
+Mix.install([{:buildkite_pipette, "~> 0.7"}])
 
 defmodule MyApp.Pipeline do
   use Pipette.DSL
@@ -109,6 +109,30 @@ extra_groups: fn _ctx, changed_files ->
   end
 end
 ```
+
+## Transforming Active Groups
+
+Use `transform_groups` when you want to rewrite the active DSL groups after activation but before triggers and `depends_on` values resolve. This is useful for routing steps to agent queues or applying shared runtime metadata without replacing `Pipette.run/2`.
+
+```elixir
+Pipette.run(MyApp.Pipeline,
+  transform_groups: fn groups ->
+    Enum.map(groups, fn group ->
+      steps =
+        Enum.map(group.steps, fn
+          %Pipette.Step{} = step ->
+            %{step | agents: Map.put(step.agents || %{}, :queue, "linux")}
+
+          other -> other
+        end)
+
+      %{group | steps: steps}
+    end)
+  end
+)
+```
+
+`transform_groups` receives only the groups activated from the DSL. `extra_groups` are appended afterward, so transform them inside the `extra_groups` callback if they need the same treatment.
 
 ## Using Pipette.Constructors
 

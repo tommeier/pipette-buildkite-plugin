@@ -107,6 +107,7 @@ defmodule Pipette.Dsl.Verifiers.ValidateRefs do
 
   defp to_atom(dep) when is_atom(dep), do: dep
   defp to_atom(dep) when is_binary(dep), do: String.to_atom(dep)
+  defp to_atom(%Pipette.Optional{dep: dep}), do: to_atom(dep)
   defp to_atom(_), do: nil
 
   defp format_available(names) do

@@ -83,6 +83,21 @@ end
 
 When `:api` is activated by scope matching, `:deploy` is pulled in because it `depends_on: :api` and has no scope of its own.
 
+### Optional Dependencies
+
+Use `optional/1` for step or trigger dependencies that should wait for a target only when that target is present in the generated pipeline:
+
+```elixir
+import Pipette.Constructors, only: [optional: 1]
+
+trigger :deploy_downstream do
+  pipeline("production-deploy")
+  depends_on([:api, optional(:web)])
+end
+```
+
+If `:web` is defined but inactive for the current build, Pipette drops that dependency before uploading. Required dependencies still fail loudly, and `optional/1` references to undefined targets are kept so typos or stale renames are not hidden.
+
 ### 6. `only` Branch Filter
 
 After all activation and propagation, groups are filtered by their `only` field:
@@ -168,6 +183,8 @@ end
 ```
 
 The tuple `{:api, :test}` resolves to the Buildkite step key `"api-test"`. This lets you express fine-grained dependencies — the deploy step waits for the specific upstream step, not just the group as a whole.
+
+Tuple dependencies also work from top-level triggers and nested triggers. For conditional targets, wrap the atom, tuple, or explicit key in `optional/1`.
 
 You can also mix cross-group and intra-group dependencies in a list:
 

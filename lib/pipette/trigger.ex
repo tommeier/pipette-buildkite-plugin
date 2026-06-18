@@ -30,9 +30,10 @@ defmodule Pipette.Trigger do
     * `:name` (`atom()`) — unique identifier for this trigger
     * `:label` (`String.t() | nil`) — display label in the Buildkite UI
     * `:pipeline` (`String.t()`) — slug of the Buildkite pipeline to
-      trigger (e.g. `"deploy-production"`)
-    * `:depends_on` — atom (sibling step or top-level group),
-      string (explicit Buildkite key), or list mixing the two forms
+      trigger (e.g. `"production-deploy"`)
+    * `:depends_on` — atom (sibling step or top-level group), tuple,
+      string (explicit Buildkite key), `Pipette.Optional`, or list mixing those
+      forms
     * `:only` (`String.t() | [String.t()] | nil`) — branch pattern(s)
       restricting when this trigger fires
     * `:build` (`map() | nil`) — build parameters to pass
@@ -48,21 +49,21 @@ defmodule Pipette.Trigger do
       # Top-level trigger
       trigger :deploy do
         label ":rocket: Deploy"
-        pipeline "deploy-production"
+        pipeline "production-deploy"
         depends_on [:api, :web]
         only "main"
         async true
       end
 
       # Nested trigger (inside a group)
-      group :backend_deploy do
-        label ":rocket: Backend Deploy"
+      group :deploy do
+        label ":rocket: Deploy"
         only "main"
 
         trigger :rollout do
-          label ":rocket: Deploy"
-          pipeline "deploy-production"
-          depends_on :backend       # top-level group, resolved at runtime
+          label ":rocket: Rollout"
+          pipeline "production-deploy"
+          depends_on :api           # top-level group, resolved at runtime
           build %{commit: "${BUILDKITE_COMMIT}"}
         end
 
@@ -90,7 +91,13 @@ defmodule Pipette.Trigger do
           name: atom(),
           label: String.t() | nil,
           pipeline: String.t(),
-          depends_on: atom() | [atom()] | nil,
+          depends_on:
+            atom()
+            | {atom(), atom()}
+            | String.t()
+            | Pipette.Optional.t()
+            | [atom() | {atom(), atom()} | String.t() | Pipette.Optional.t()]
+            | nil,
           only: String.t() | [String.t()] | nil,
           build: map() | nil,
           async: boolean() | nil,

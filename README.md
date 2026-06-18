@@ -14,8 +14,10 @@ Define your CI pipeline with a declarative DSL powered by [Spark](https://hexdoc
 - **Branch policies** — run all groups on `main`, restrict to specific scopes on release branches, use file-based detection elsewhere
 - **Commit message targeting** — `[ci:api]` or `[ci:api/test]` in commit messages to run specific groups/steps
 - **Dependency propagation** — groups that `depends_on` an active group are pulled in automatically; scopeless groups activate when any dependency is active
+- **Optional dependencies** — wrap conditional step or trigger dependencies in `optional/1` so defined-but-inactive targets are dropped
 - **Force activation** — environment variables like `FORCE_DEPLOY=true` bypass scope detection to activate specific groups
 - **Dynamic groups** — `extra_groups` callback to generate groups at runtime (e.g. discovering packages in a directory)
+- **Runtime group transforms** — `transform_groups` callback to rewrite active groups before triggers and dependencies resolve
 - **Branch-scoped groups** — `only: "main"` restricts groups to specific branches
 - **Trigger steps** — fire downstream Buildkite pipelines when conditions are met
 - **Compile-time validation** — Spark verifiers catch scope ref errors, dependency cycles, and label collisions at compile time
@@ -63,7 +65,7 @@ end
 Create a pipeline script at `.buildkite/pipeline.exs`:
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.5"}])
+Mix.install([{:buildkite_pipette, "~> 0.7"}])
 Pipette.run(MyApp.Pipeline)
 ```
 
@@ -81,14 +83,14 @@ Add `pipette` to your `mix.exs` dependencies:
 
 ```elixir
 def deps do
-  [{:buildkite_pipette, "~> 0.5"}]
+  [{:buildkite_pipette, "~> 0.7"}]
 end
 ```
 
 Or use `Mix.install` in standalone pipeline scripts (no project required):
 
 ```elixir
-Mix.install([{:buildkite_pipette, "~> 0.5"}])
+Mix.install([{:buildkite_pipette, "~> 0.7"}])
 ```
 
 ## How It Works
@@ -230,15 +232,15 @@ Fires a downstream Buildkite pipeline. Can be declared at the top level (sibling
 A trigger declared inside a `group` becomes a child of that group on the Buildkite canvas — the trigger renders inside the group's card alongside any sibling command steps. Use this when a logical phase combines a cross-pipeline trigger and follow-up command steps (e.g. trigger a deploy pipeline, then tag the commit and post a release).
 
 ```elixir
-group :backend_deploy do
-  label ":rocket: Backend Deploy"
-  scope :backend_code
+group :deploy do
+  label ":rocket: Deploy"
+  scope :api_code
   only "main"
 
   trigger :rollout do
-    label ":rocket: Deploy"
-    pipeline "deploy-production"
-    depends_on :backend           # top-level group reference (resolved at runtime)
+    label ":rocket: Rollout"
+    pipeline "production-deploy"
+    depends_on :api               # top-level group reference (resolved at runtime)
     build %{commit: "${BUILDKITE_COMMIT}"}
   end
 
@@ -256,9 +258,25 @@ end
 | `:atom` matching a sibling step or trigger name | Sibling's key (compile time) |
 | `:atom` matching a top-level group name | Top-level group's key (runtime) |
 | `"explicit-key"` | Pass-through (no resolution) |
-| `[atom \| string \| ...]` | Each element resolved by the same rules |
+| `optional(ref)` | `ref` resolved as above, then dropped if its target isn't in this build |
+| `[atom \| string \| optional(...) \| ...]` | Each element resolved by the same rules |
 
 A trigger filtered out by `:only` is dropped from the group's child list at activation time. If that empties the group entirely, the group itself is dropped.
+
+#### Optional dependencies
+
+In a change-scoped pipeline a group only renders when its files change, so a trigger that depends on it can't *require* it. Wrap the reference in `optional/1` (import `Pipette.Constructors, only: [optional: 1]`) and `run/2` drops it when its target is defined in the pipeline but not active in this build:
+
+```elixir
+import Pipette.Constructors, only: [optional: 1]
+
+trigger :deploy_downstream do
+  pipeline "production-deploy"
+  depends_on [:api, optional(:web)]   # waits for :web only when web files changed
+end
+```
+
+A normal (non-optional) dependency on something not in the build still dangles and fails the upload — as does an `optional/1` reference to a target that exists *nowhere* (a typo or stale rename). Only a defined-but-inactive target is dropped.
 
 ## Buildkite Plugin
 
@@ -267,7 +285,7 @@ This repository doubles as a Buildkite plugin. Instead of adding `pipette` to a 
 ```yaml
 steps:
   - plugins:
-      - tommeier/pipette#v0.5.0:
+      - tommeier/pipette#v0.7.0:
           pipeline: .buildkite/pipeline.exs
 ```
 
@@ -275,7 +293,7 @@ The plugin runs `elixir <pipeline>` — your pipeline script should use `Mix.ins
 
 ```elixir
 # .buildkite/pipeline.exs
-Mix.install([{:buildkite_pipette, "~> 0.5"}])
+Mix.install([{:buildkite_pipette, "~> 0.7"}])
 
 defmodule MyApp.Pipeline do
   use Pipette.DSL

@@ -130,6 +130,8 @@ defmodule Pipette.Buildkite do
   defp serialize_depends_on(nil), do: nil
   defp serialize_depends_on(dep) when is_binary(dep), do: dep
   defp serialize_depends_on(dep) when is_atom(dep), do: to_string(dep)
+  # `Pipette.run/2` unwraps optional deps; this is a defensive fallback.
+  defp serialize_depends_on(%Pipette.Optional{dep: dep}), do: serialize_depends_on(dep)
   defp serialize_depends_on(deps) when is_list(deps), do: Enum.map(deps, &serialize_depends_on/1)
 
   defp serialize_plugins(nil), do: nil

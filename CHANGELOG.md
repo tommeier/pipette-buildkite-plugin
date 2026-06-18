@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0](https://github.com/tommeier/pipette-buildkite-plugin/compare/v0.6.0...v0.7.0) — 2026-06-17
+
+### Added
+
+- `optional/1` (see `Pipette.Optional`) marks a `depends_on` reference as
+  optional. When the target is defined in the pipeline but not activated by the
+  current build, the dependency is dropped instead of dangling and failing the
+  upload. A reference to a target that exists nowhere (a typo or stale rename)
+  is still kept, so genuinely broken dependencies fail loudly.
+- `run/2` accepts a `:transform_groups` option — a 1-arity
+  `(groups) -> groups` function applied to the active groups after activation,
+  before triggers and `depends_on` resolve. Lets callers route steps to agent
+  queues (or otherwise rewrite groups) without re-implementing `run/2`.
+- `resolve_depends_on_keys` now resolves `{group, step}` tuples for top-level
+  trigger and group dependencies (previously only step dependencies).
+
 ## [0.6.0](https://github.com/tommeier/pipette-buildkite-plugin/compare/v0.5.1...v0.6.0) — 2026-04-29
 
 ### Added
