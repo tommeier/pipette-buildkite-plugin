@@ -14,9 +14,9 @@ defmodule Pipette.Optional do
 
       import Pipette.Constructors, only: [optional: 1]
 
-      trigger :deploy_ios do
-        pipeline "deploy"
-        depends_on [:build, optional(:backend_deploy)]
+      trigger :deploy_downstream do
+        pipeline "production-deploy"
+        depends_on [:api, optional(:web)]
       end
 
   An optional reference to a target that exists *nowhere* (a typo or a stale

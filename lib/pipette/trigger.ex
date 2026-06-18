@@ -30,7 +30,7 @@ defmodule Pipette.Trigger do
     * `:name` (`atom()`) — unique identifier for this trigger
     * `:label` (`String.t() | nil`) — display label in the Buildkite UI
     * `:pipeline` (`String.t()`) — slug of the Buildkite pipeline to
-      trigger (e.g. `"deploy-production"`)
+      trigger (e.g. `"production-deploy"`)
     * `:depends_on` — atom (sibling step or top-level group), tuple,
       string (explicit Buildkite key), `Pipette.Optional`, or list mixing those
       forms
@@ -49,21 +49,21 @@ defmodule Pipette.Trigger do
       # Top-level trigger
       trigger :deploy do
         label ":rocket: Deploy"
-        pipeline "deploy-production"
+        pipeline "production-deploy"
         depends_on [:api, :web]
         only "main"
         async true
       end
 
       # Nested trigger (inside a group)
-      group :backend_deploy do
-        label ":rocket: Backend Deploy"
+      group :deploy do
+        label ":rocket: Deploy"
         only "main"
 
         trigger :rollout do
-          label ":rocket: Deploy"
-          pipeline "deploy-production"
-          depends_on :backend       # top-level group, resolved at runtime
+          label ":rocket: Rollout"
+          pipeline "production-deploy"
+          depends_on :api           # top-level group, resolved at runtime
           build %{commit: "${BUILDKITE_COMMIT}"}
         end
 

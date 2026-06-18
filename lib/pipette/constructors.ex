@@ -47,7 +47,7 @@ defmodule Pipette.Constructors do
 
   `import Pipette.Constructors, only: [optional: 1]` to use it inline:
 
-      depends_on [:build, optional(:backend_deploy)]
+      depends_on [:api, optional(:web)]
   """
   @spec optional(Pipette.Optional.ref()) :: Pipette.Optional.t()
   def optional(dep), do: %Pipette.Optional{dep: dep}

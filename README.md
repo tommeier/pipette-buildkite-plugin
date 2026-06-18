@@ -232,15 +232,15 @@ Fires a downstream Buildkite pipeline. Can be declared at the top level (sibling
 A trigger declared inside a `group` becomes a child of that group on the Buildkite canvas — the trigger renders inside the group's card alongside any sibling command steps. Use this when a logical phase combines a cross-pipeline trigger and follow-up command steps (e.g. trigger a deploy pipeline, then tag the commit and post a release).
 
 ```elixir
-group :backend_deploy do
-  label ":rocket: Backend Deploy"
-  scope :backend_code
+group :deploy do
+  label ":rocket: Deploy"
+  scope :api_code
   only "main"
 
   trigger :rollout do
-    label ":rocket: Deploy"
-    pipeline "deploy-production"
-    depends_on :backend           # top-level group reference (resolved at runtime)
+    label ":rocket: Rollout"
+    pipeline "production-deploy"
+    depends_on :api               # top-level group reference (resolved at runtime)
     build %{commit: "${BUILDKITE_COMMIT}"}
   end
 
@@ -270,9 +270,9 @@ In a change-scoped pipeline a group only renders when its files change, so a tri
 ```elixir
 import Pipette.Constructors, only: [optional: 1]
 
-trigger :deploy_ios do
-  pipeline "deploy"
-  depends_on [:build, optional(:backend_deploy)]   # waits for the deploy only when it runs
+trigger :deploy_downstream do
+  pipeline "production-deploy"
+  depends_on [:api, optional(:web)]   # waits for :web only when web files changed
 end
 ```
 

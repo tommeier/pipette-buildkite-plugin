@@ -90,13 +90,13 @@ Use `optional/1` for step or trigger dependencies that should wait for a target 
 ```elixir
 import Pipette.Constructors, only: [optional: 1]
 
-trigger :deploy_ios do
-  pipeline("deploy-ios")
-  depends_on([:build, optional(:backend_deploy)])
+trigger :deploy_downstream do
+  pipeline("production-deploy")
+  depends_on([:api, optional(:web)])
 end
 ```
 
-If `:backend_deploy` is defined but inactive for the current build, Pipette drops that dependency before uploading. Required dependencies still fail loudly, and `optional/1` references to undefined targets are kept so typos or stale renames are not hidden.
+If `:web` is defined but inactive for the current build, Pipette drops that dependency before uploading. Required dependencies still fail loudly, and `optional/1` references to undefined targets are kept so typos or stale renames are not hidden.
 
 ### 6. `only` Branch Filter
 
