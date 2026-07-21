@@ -286,7 +286,7 @@ This repository doubles as a Buildkite plugin. Instead of adding `pipette` to a 
 ```yaml
 steps:
   - plugins:
-      - tommeier/pipette#v0.7.0:
+      - tommeier/pipette#v0.7.1:
           pipeline: .buildkite/pipeline.exs
 ```
 
