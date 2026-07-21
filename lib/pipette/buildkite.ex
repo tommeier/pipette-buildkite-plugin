@@ -125,6 +125,7 @@ defmodule Pipette.Buildkite do
     |> put_if("depends_on", serialize_depends_on(trigger.depends_on))
     |> put_if("async", trigger.async)
     |> put_if("build", maybe_stringify_keys(trigger.build))
+    |> put_if("skip", trigger.skip)
   end
 
   defp serialize_depends_on(nil), do: nil

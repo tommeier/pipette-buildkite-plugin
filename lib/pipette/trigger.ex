@@ -40,6 +40,8 @@ defmodule Pipette.Trigger do
       (e.g. `%{message: "Deploy", env: %{DEPLOY_ENV: "production"}}`)
     * `:async` (`boolean() | nil`) — when `true`, don't wait for the
       triggered build to complete
+    * `:skip` (`boolean() | String.t() | nil`) — skip the trigger; a string is
+      displayed as the reason
     * `:key` (`String.t() | nil`) — explicit Buildkite step key.
       Auto-derived as `"<group_key>-<name>"` for nested triggers and
       `"<name>"` for top-level triggers if omitted.
@@ -82,6 +84,7 @@ defmodule Pipette.Trigger do
     :only,
     :build,
     :async,
+    :skip,
     :key,
     :__identifier__,
     :__spark_metadata__
@@ -101,6 +104,7 @@ defmodule Pipette.Trigger do
           only: String.t() | [String.t()] | nil,
           build: map() | nil,
           async: boolean() | nil,
+          skip: boolean() | String.t() | nil,
           key: String.t() | nil
         }
 end

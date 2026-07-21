@@ -226,6 +226,7 @@ Fires a downstream Buildkite pipeline. Can be declared at the top level (sibling
 | `only` | `String.t() \| [String.t()] \| nil` | Branch filter |
 | `build` | `map() \| nil` | Build parameters to pass |
 | `async` | `boolean() \| nil` | Don't wait for the triggered build |
+| `skip` | `boolean() \| String.t() \| nil` | Skip the trigger; a string is displayed as the reason |
 
 #### Nested triggers
 
