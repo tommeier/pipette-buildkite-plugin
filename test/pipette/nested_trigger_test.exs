@@ -87,7 +87,7 @@ defmodule Pipette.NestedTriggerTest do
       assert Enum.all?(group.steps, &is_struct(&1, Trigger))
     end
 
-    test "preserves all trigger fields (build, async, only, key)" do
+    test "preserves all trigger fields (build, async, only, skip, key)" do
       defmodule FullFieldsTriggerPipeline do
         use Pipette.DSL
 
@@ -101,6 +101,7 @@ defmodule Pipette.NestedTriggerTest do
             build(%{message: "Deploy", env: %{FOO: "bar"}})
             async(true)
             only("main")
+            skip("Deployments paused")
             key("custom-go-key")
           end
         end
@@ -114,6 +115,7 @@ defmodule Pipette.NestedTriggerTest do
       assert trigger.build == %{message: "Deploy", env: %{FOO: "bar"}}
       assert trigger.async == true
       assert trigger.only == "main"
+      assert trigger.skip == "Deployments paused"
       assert trigger.key == "custom-go-key"
     end
 
@@ -400,6 +402,30 @@ defmodule Pipette.NestedTriggerTest do
       assert yaml =~ "build:"
       assert yaml =~ "commit:"
       assert yaml =~ "message: Deploy"
+    end
+
+    test "serializes a trigger skip reason" do
+      groups = [
+        %Group{
+          name: :deploy,
+          label: "Deploy",
+          key: "deploy",
+          steps: [
+            %Trigger{
+              name: :rollout,
+              label: "Rollout",
+              pipeline: "downstream",
+              key: "deploy-rollout",
+              skip: "Deployments paused"
+            }
+          ]
+        }
+      ]
+
+      yaml = Buildkite.to_yaml(groups)
+
+      assert yaml =~ "trigger: downstream"
+      assert yaml =~ "skip: Deployments paused"
     end
 
     test "group containing only a trigger (no command steps) serializes" do

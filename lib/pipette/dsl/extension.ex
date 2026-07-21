@@ -78,6 +78,10 @@ defmodule Pipette.Dsl.Extension do
       only: [type: {:or, [:string, {:list, :string}]}, doc: "Branch restriction."],
       build: [type: :map, doc: "Build parameters for the triggered pipeline."],
       async: [type: :boolean, default: false, doc: "Fire and forget."],
+      skip: [
+        type: {:or, [:boolean, :string]},
+        doc: "Skip this trigger. A string is displayed as the reason."
+      ],
       key: [type: :string, doc: "Override auto-generated Buildkite key."]
     ]
   }
