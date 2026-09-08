@@ -122,6 +122,44 @@ defmodule Pipette.Dsl.Transformers.GenerateKeysTest do
       assert push.depends_on == "api-test"
     end
 
+    test "resolves cross-group step depends_on tuple to the target's explicit key" do
+      defmodule CrossGroupExplicitKeyPipeline do
+        use Pipette.DSL
+
+        group :api do
+          label("API")
+          step(:test, key: "api-unit-tests", label: "Test", command: "mix test")
+        end
+
+        group :deploy do
+          label("Deploy")
+          depends_on(:api)
+          step(:push, label: "Push", command: "push.sh", depends_on: {:api, :test})
+        end
+      end
+
+      deploy =
+        Pipette.Info.groups(CrossGroupExplicitKeyPipeline) |> Enum.find(&(&1.name == :deploy))
+
+      push = Enum.find(deploy.steps, &(&1.name == :push))
+      assert push.depends_on == "api-unit-tests"
+    end
+
+    test "cross-group tuple to an undefined step keeps the synthesised key" do
+      defmodule CrossGroupRuntimeTargetPipeline do
+        use Pipette.DSL
+
+        group :deploy do
+          label("Deploy")
+          step(:push, label: "Push", command: "push.sh", depends_on: {:extra, :bake})
+        end
+      end
+
+      [deploy] = Pipette.Info.groups(CrossGroupRuntimeTargetPipeline)
+      push = Enum.find(deploy.steps, &(&1.name == :push))
+      assert push.depends_on == "extra-bake"
+    end
+
     test "resolves group depends_on atom to key string" do
       defmodule GroupDepsAtomPipeline do
         use Pipette.DSL
