@@ -29,6 +29,12 @@ defmodule Pipette.StepKeyDepsTest do
       depends_on([{:image, :sign}])
       build(%{})
     end
+
+    trigger :audit do
+      pipeline("audit")
+      depends_on([optional({:image, :sign})])
+      build(%{})
+    end
   end
 
   defp render(changed) do
@@ -73,5 +79,16 @@ defmodule Pipette.StepKeyDepsTest do
 
   test "trigger tuple resolves to the target's explicit key at runtime" do
     assert deps_of(render(["core/x", "image/y"]), "notify") == ["image-signed"]
+  end
+
+  test "trigger tuple gates activation on the target's group" do
+    refute render(["core/x"]) =~ "key: notify"
+  end
+
+  test "optional trigger tuple never gates activation and drops when inactive" do
+    yaml = render(["core/x"])
+    assert yaml =~ "key: audit"
+    assert deps_of(yaml, "audit") == []
+    assert deps_of(render(["core/x", "image/y"]), "audit") == ["image-signed"]
   end
 end
