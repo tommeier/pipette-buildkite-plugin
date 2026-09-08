@@ -191,7 +191,11 @@ defmodule Pipette do
 
     # Resolve group/trigger depends_on atoms to key strings for Buildkite YAML.
     # The activation engine uses atom names internally; Buildkite needs key strings.
-    group_key_map = Map.new(pipeline.groups ++ extra_groups, &{&1.name, &1.key})
+    # Group names and {group, step} pairs cannot collide, so one map serves both.
+    key_map =
+      (pipeline.groups ++ extra_groups)
+      |> Map.new(&{&1.name, &1.key})
+      |> Map.merge(step_key_map(pipeline.groups ++ extra_groups))
 
     # Keys defined in the pipeline but not activated by this build. An
     # `optional/1` dep pointing at one is dropped (the target legitimately isn't
@@ -212,10 +216,10 @@ defmodule Pipette do
         resolved_steps =
           Enum.map(group.steps, fn
             %Pipette.Trigger{} = trigger ->
-              %{trigger | depends_on: resolve_deps(trigger.depends_on, group_key_map, inactive)}
+              %{trigger | depends_on: resolve_deps(trigger.depends_on, key_map, inactive)}
 
             %Pipette.Step{} = step ->
-              %{step | depends_on: resolve_deps(step.depends_on, group_key_map, inactive)}
+              %{step | depends_on: resolve_deps(step.depends_on, key_map, inactive)}
 
             other ->
               other
@@ -223,14 +227,14 @@ defmodule Pipette do
 
         %{
           group
-          | depends_on: resolve_depends_on_keys(group.depends_on, group_key_map),
+          | depends_on: resolve_depends_on_keys(group.depends_on, key_map),
             steps: resolved_steps
         }
       end)
 
     triggers =
       Enum.map(triggers, fn trigger ->
-        %{trigger | depends_on: resolve_deps(trigger.depends_on, group_key_map, inactive)}
+        %{trigger | depends_on: resolve_deps(trigger.depends_on, key_map, inactive)}
       end)
 
     if all_groups == [] and triggers == [] do
@@ -270,11 +274,20 @@ defmodule Pipette do
   defp resolve_depends_on_keys(dep, map) when is_atom(dep),
     do: Map.get(map, dep, Atom.to_string(dep))
 
-  defp resolve_depends_on_keys({group, step}, _map) when is_atom(group) and is_atom(step),
-    do: "#{group}-#{step}"
+  defp resolve_depends_on_keys({group, step} = ref, map) when is_atom(group) and is_atom(step),
+    do: Map.get(map, ref, "#{group}-#{step}")
 
   defp resolve_depends_on_keys(deps, map) when is_list(deps),
     do: Enum.map(deps, &resolve_depends_on_keys(&1, map))
+
+  # {group_name, child_name} -> key for every keyed step and nested trigger.
+  defp step_key_map(groups) do
+    Map.new(
+      for group <- groups, child <- group.steps, is_binary(child.key) do
+        {{group.name, child.name}, child.key}
+      end
+    )
+  end
 
   # The Buildkite key of every group, step, nested trigger, and top-level
   # trigger in the given lists — the set of valid `depends_on` targets.
