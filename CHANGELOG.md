@@ -2,22 +2,6 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
-
-### Fixed
-
-- `{group, step}` `depends_on` references resolve to the target step's explicit
-  `key:`; the derived `"group-step"` form is now only a fallback for targets
-  not defined in the pipeline (groups supplied at runtime). Previously the
-  derived form was always used, so a reference to a step with a custom key
-  rendered a key Buildkite had never seen, and `optional/1` could not recognise
-  the target as inactive. Applies to step, nested-trigger, group and top-level
-  trigger dependencies.
-- Top-level triggers accept `{group, step}` and `optional/1` dependencies.
-  Activation previously raised `FunctionClauseError` on either form; a step
-  reference now gates the trigger on its group, and an optional reference never
-  gates it.
-
 ## [0.7.1](https://github.com/tommeier/pipette-buildkite-plugin/compare/v0.7.0...v0.7.1) — 2026-07-21
 
 ### Changed
