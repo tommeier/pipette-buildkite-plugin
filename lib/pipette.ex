@@ -399,6 +399,11 @@ defmodule Pipette do
   defp trigger_deps_met?(nil, _active), do: true
   defp trigger_deps_met?(dep, active) when is_atom(dep), do: dep in active
 
+  # A step reference is met when its group is active. An optional reference
+  # never gates activation: it is dropped from the rendered deps when inactive.
+  defp trigger_deps_met?({group, _step}, active) when is_atom(group), do: group in active
+  defp trigger_deps_met?(%Pipette.Optional{}, _active), do: true
+
   defp trigger_deps_met?(dep, active) when is_binary(dep),
     do: String.to_atom(dep) in active
 
