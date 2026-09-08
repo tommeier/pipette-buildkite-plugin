@@ -202,7 +202,7 @@ A single Buildkite command step.
 | `label` | `String.t()` | Display label in Buildkite UI |
 | `command` | `String.t() \| [String.t()]` | Shell command(s) to run |
 | `timeout_in_minutes` | `pos_integer() \| nil` | Step timeout |
-| `depends_on` | `atom() \| {atom(), atom()} \| list()` | Step-level dependencies |
+| `depends_on` | `atom() \| {atom(), atom()} \| String.t() \| optional(ref) \| list()` | Sibling step name, `{group, step}` (resolves to that step's key), explicit key string, or `optional/1` |
 | `env` | `map() \| nil` | Step environment variables |
 | `agents` | `map() \| nil` | Agent targeting rules |
 | `plugins` | `list() \| nil` | Buildkite plugins |
@@ -222,7 +222,7 @@ Fires a downstream Buildkite pipeline. Can be declared at the top level (sibling
 | `name` | `atom()` | Unique trigger identifier |
 | `label` | `String.t() \| nil` | Display label |
 | `pipeline` | `String.t()` | Slug of the pipeline to trigger |
-| `depends_on` | `atom() \| String.t() \| [atom() \| String.t()] \| nil` | Atom (group/sibling-step name) or string (explicit Buildkite key) |
+| `depends_on` | `atom() \| {atom(), atom()} \| String.t() \| optional(ref) \| list() \| nil` | Atom (group/sibling-step name), `{group, step}` (that step's key; a top-level trigger then waits on the group), string (explicit Buildkite key), or `optional/1` |
 | `only` | `String.t() \| [String.t()] \| nil` | Branch filter |
 | `build` | `map() \| nil` | Build parameters to pass |
 | `async` | `boolean() \| nil` | Don't wait for the triggered build |
@@ -258,6 +258,7 @@ end
 |------|-------------|
 | `:atom` matching a sibling step or trigger name | Sibling's key (compile time) |
 | `:atom` matching a top-level group name | Top-level group's key (runtime) |
+| `{group, step}` | That step's key — its explicit `key:` if set (compile time when defined in the pipeline, otherwise runtime; derived `"group-step"` only for undefined targets) |
 | `"explicit-key"` | Pass-through (no resolution) |
 | `optional(ref)` | `ref` resolved as above, then dropped if its target isn't in this build |
 | `[atom \| string \| optional(...) \| ...]` | Each element resolved by the same rules |
