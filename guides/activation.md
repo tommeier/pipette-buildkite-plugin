@@ -136,6 +136,10 @@ Scopes use glob patterns with `**` and `*`:
 - `**` matches any path segment(s), including nested directories
 - `*` matches anything except `/`
 - Patterns without `/` also match against the basename
+- A leading `/` anchors the pattern to the repository root. `/package.json` matches `package.json`, but not `apps/store/package.json`.
+
+Use root-anchored patterns for shared configuration files. These patterns also work in `exclude` and `ignore` lists.
+Existing basename patterns retain their behaviour.
 
 ```elixir
 scope(:api_code,

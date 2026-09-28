@@ -98,6 +98,88 @@ defmodule Pipette.IntegrationTest do
 
   defp active_group_names(:noop), do: MapSet.new()
 
+  defmodule RootFilePipeline do
+    use Pipette.DSL
+
+    branch("main", scopes: :all, disable: [:targeting])
+    scope(:checks, files: ["**"])
+    scope(:native, files: ["apps/native/**", "/package.json", "/pnpm-lock.yaml"])
+    force_activate(%{"FORCE_DEPLOY" => [:deploy]})
+
+    group :checks do
+      scope(:checks)
+      step(:test, label: "Checks", command: "test")
+    end
+
+    group :deploy do
+      scope(:native, ignore_global: true)
+      depends_on(:checks)
+      only("main")
+      step(:release, label: "Native release", command: "release")
+    end
+  end
+
+  describe "root-file release scopes" do
+    test "unrelated manifests still run main checks without a native release" do
+      for file <- [
+            "apps/store/package.json",
+            "apps/store/pnpm-lock.yaml",
+            "scripts/docs/package.json"
+          ] do
+        assert {:ok, yaml} =
+                 Pipette.generate(RootFilePipeline,
+                   env: ctx(%{"BUILDKITE_BRANCH" => "main"}),
+                   changed_files: [file]
+                 )
+
+        assert yaml =~ "Checks"
+        refute yaml =~ "Native release"
+      end
+    end
+
+    test "root manifests and native files retain their checked release path" do
+      for file <- [
+            "package.json",
+            "pnpm-lock.yaml",
+            "apps/native/package.json",
+            "apps/native/src/App.tsx"
+          ] do
+        assert {:ok, yaml} =
+                 Pipette.generate(RootFilePipeline,
+                   env: ctx(%{"BUILDKITE_BRANCH" => "main"}),
+                   changed_files: [file]
+                 )
+
+        assert yaml =~ "Checks"
+        assert yaml =~ "Native release"
+        assert yaml =~ "depends_on:"
+      end
+    end
+
+    test "branch restrictions, explicit force and unknown changes retain their behaviour" do
+      assert {:ok, yaml} =
+               Pipette.generate(RootFilePipeline, env: ctx(), changed_files: ["package.json"])
+
+      refute yaml =~ "Native release"
+
+      assert {:ok, forced} =
+               Pipette.generate(RootFilePipeline,
+                 env: ctx(%{"FORCE_DEPLOY" => "true"}),
+                 changed_files: ["scripts/docs/package.json"]
+               )
+
+      assert forced =~ "Native release"
+
+      assert {:ok, unknown} =
+               Pipette.generate(RootFilePipeline,
+                 env: ctx(%{"BUILDKITE_BRANCH" => "main"}),
+                 changed_files: :all
+               )
+
+      assert unknown =~ "Native release"
+    end
+  end
+
   describe "main branch" do
     test "all 5 groups active + trigger fires" do
       result =
