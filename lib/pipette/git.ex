@@ -57,6 +57,10 @@ defmodule Pipette.Git do
       false
   """
   @spec matches_glob?(String.t(), String.t()) :: boolean()
+  def matches_glob?(file_path, "/" <> pattern) do
+    Regex.match?(glob_to_regex(pattern), file_path)
+  end
+
   def matches_glob?(file_path, pattern) do
     regex = glob_to_regex(pattern)
 
