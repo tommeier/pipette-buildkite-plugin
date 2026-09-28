@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.3](https://github.com/tommeier/pipette-buildkite-plugin/compare/v0.7.2...v0.7.3) — 2026-09-28
+
+### Changed
+
+- Keep root-file scopes from matching nested manifests
+
 ## [0.7.2](https://github.com/tommeier/pipette-buildkite-plugin/compare/v0.7.1...v0.7.2) — 2026-09-08
 
 ### Changed
